@@ -1,11 +1,11 @@
 [workspace]
 members = [
-	"node","runtime"
+	"node", "pallets/*","runtime"
 ]
 resolver = "2"
 
 [workspace.package]
-authors = [ "Moondance Labs" ]
+authors = [ "Mrisho Lukamba @ spectre" ]
 
 [workspace.lints.clippy]
 # Deny main lint groups

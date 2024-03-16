@@ -1,0 +1,28 @@
+[package]
+name = "spectre"
+version = "0.1.0"
+edition = "2021"
+authors.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+
+parity-scale-codec = { workspace = true, features = [ "derive" ] }
+scale-info = { workspace = true, features = [ "derive" ] }
+serde = { workspace = true, optional = true, features = [ "derive" ] }
+frame-support = { workspace = true }
+frame-system = { workspace = true }
+sp-std = { workspace = true }
+[features]
+default = [ "std" ]
+std = [
+    "parity-scale-codec/std",
+    "scale-info/std",
+    "frame-support/std",
+    "frame-system/std",
+    "sp-std/std"
+]
+[lints]
+workspace = true
+
