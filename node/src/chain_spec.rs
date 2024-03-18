@@ -1,21 +1,7 @@
-// Copyright (C) Moondance Labs Ltd.
-// This file is part of Tanssi.
 
-// Tanssi is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-
-// Tanssi is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-
-// You should have received a copy of the GNU General Public License
-// along with Tanssi.  If not, see <http://www.gnu.org/licenses/>.
 
 use {
-    container_chain_template_frontier_runtime::{
+    spectre_runtime::{
         AccountId, EVMChainIdConfig, EVMConfig, MaintenanceModeConfig, MigrationsConfig,
         PolkadotXcmConfig, Precompiles,
     },
@@ -30,7 +16,7 @@ use {
 
 /// Specialized `ChainSpec` for the normal parachain runtime.
 pub type ChainSpec = sc_service::GenericChainSpec<
-    container_chain_template_frontier_runtime::RuntimeGenesisConfig,
+    spectre_runtime::RuntimeGenesisConfig,
     Extensions,
 >;
 
@@ -74,7 +60,7 @@ pub fn development_config(para_id: ParaId, boot_nodes: Vec<String>) -> ChainSpec
         .collect();
 
     ChainSpec::builder(
-        container_chain_template_frontier_runtime::WASM_BINARY
+        spectre_runtime::WASM_BINARY
             .expect("WASM binary was not built, please build it!"),
         Extensions {
             relay_chain: "rococo-local".into(), // You MUST set this to the correct network!
@@ -115,7 +101,7 @@ pub fn local_testnet_config(para_id: ParaId, boot_nodes: Vec<String>) -> ChainSp
         .collect();
 
     ChainSpec::builder(
-        container_chain_template_frontier_runtime::WASM_BINARY
+        spectre_runtime::WASM_BINARY
             .expect("WASM binary was not built, please build it!"),
         Extensions {
             relay_chain: "rococo-local".into(), // You MUST set this to the correct network!
@@ -147,16 +133,16 @@ fn testnet_genesis(
     // (PUSH1 0x00 PUSH1 0x00 REVERT)
     let revert_bytecode = vec![0x60, 0x00, 0x60, 0x00, 0xFD];
 
-    let g = container_chain_template_frontier_runtime::RuntimeGenesisConfig {
+    let g = spectre_runtime::RuntimeGenesisConfig {
         system: Default::default(),
-        balances: container_chain_template_frontier_runtime::BalancesConfig {
+        balances: spectre_runtime::BalancesConfig {
             balances: endowed_accounts
                 .iter()
                 .cloned()
                 .map(|k| (k, 1 << 80))
                 .collect(),
         },
-        parachain_info: container_chain_template_frontier_runtime::ParachainInfoConfig {
+        parachain_info: spectre_runtime::ParachainInfoConfig {
             parachain_id: id,
             ..Default::default()
         },
@@ -189,10 +175,10 @@ fn testnet_genesis(
         ethereum: Default::default(),
         base_fee: Default::default(),
         transaction_payment: Default::default(),
-        sudo: container_chain_template_frontier_runtime::SudoConfig {
+        sudo: spectre_runtime::SudoConfig {
             key: Some(root_key),
         },
-        authorities_noting: container_chain_template_frontier_runtime::AuthoritiesNotingConfig {
+        authorities_noting: spectre_runtime::AuthoritiesNotingConfig {
             orchestrator_para_id: ORCHESTRATOR,
             ..Default::default()
         },

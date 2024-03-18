@@ -35,7 +35,7 @@ unsafe-code = { level = "deny", priority = 1 }
 [workspace.dependencies]
 
 # Local
-container-chain-template-frontier-runtime = {path = "runtime", features = [ "std" ] }
+spectre-runtime = {path = "runtime", features = [ "std" ] }
 
 
 #Tanssi Node

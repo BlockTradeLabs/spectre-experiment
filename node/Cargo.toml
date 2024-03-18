@@ -1,10 +1,10 @@
 [package]
-name = "container-chain-template-frontier-node"
+name = "spectre-node"
 authors = { workspace = true }
 build = "build.rs"
-description = "Frontier container chain template node"
+description = "spectre ethereum compatible substrate node"
 edition = "2021"
-license = "GPL-3.0-only"
+license = ""
 version = "0.1.0"
 
 
@@ -25,7 +25,7 @@ url = { workspace = true }
 
 # Local
 ccp-authorities-noting-inherent = { workspace = true }
-container-chain-template-frontier-runtime = { workspace = true, features = [ "std" ] }
+spectre-runtime = { workspace = true, features = [ "std" ] }
 manual-xcm-rpc = { workspace = true }
 node-common = { workspace = true }
 tc-consensus = { workspace = true }
@@ -115,7 +115,7 @@ substrate-build-script-utils = { workspace = true }
 [features]
 default = []
 runtime-benchmarks = [
-	"container-chain-template-frontier-runtime/runtime-benchmarks",
+	"spectre-runtime/runtime-benchmarks",
 	"cumulus-primitives-core/runtime-benchmarks",
 	"frame-benchmarking-cli/runtime-benchmarks",
 	"frame-benchmarking/runtime-benchmarks",
@@ -129,7 +129,7 @@ runtime-benchmarks = [
 	"sp-runtime/runtime-benchmarks",
 ]
 try-runtime = [
-	"container-chain-template-frontier-runtime/try-runtime",
+	"spectre-runtime/try-runtime",
 	"nimbus-primitives/try-runtime",
 	"pallet-ethereum/try-runtime",
 	"polkadot-cli/try-runtime",

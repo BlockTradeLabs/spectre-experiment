@@ -1,3 +1,33 @@
+//! Spectre pallet.
+//!
+//! Terminologies
+//! 1. OnChain Trading account -> A keyPair stored privately in phala contract that is linked with trader sovereign keypair, responsible
+//!                               for signing trade transactions
+//!
+//! 2. Pool -> Liquidity Pool, in this context is just a pool holding and keeping track of deposited tokens from investors,
+//!         note that there is no swapping functionalities
+//!
+//!
+//! Main functionalities are;
+//!
+//!     1. Investor depositing and registering
+//!
+//!     2. LP tracking for deposited funds
+//!
+//!     3. Funds allocation from LP to traders
+//!
+//!     4. Fetching live price feeds from oracle
+//!
+//!     5. Trader executing trades
+//!         a. Signing transaction payload
+//!         b. Sending to Relayer
+//!
+//!     6.  Relayer updating transaction execution to the oracle.
+//!
+//!     7. Tracking trader perfomance
+//!
+//!
+
 #![cfg_attr(not(feature = "std"), no_std)]
 
 pub mod util;
@@ -42,14 +72,14 @@ pub mod pallet {
     pub struct Pallet<T>(_);
 
     #[pallet::storage]
-    pub type InvestorProfiles<T: Config> = StorageMap<_,Blake2_128Concat,T::AccountId,InvestorProfile<T>>;
+    pub type InvestorProfiles<T: Config> = CountedStorageMap<_,Blake2_128Concat,T::AccountId,InvestorProfile<T>>;
 
     #[pallet::storage]
-    pub type TraderProfiles<T: Config> = StorageMap<_,Blake2_128Concat,T::AccountId,TraderProfile<T>>;
+    pub type TraderProfiles<T: Config> = CountedStorageMap<_,Blake2_128Concat,T::AccountId,TraderProfile<T>>;
 
     /// A mapping of Trader Soverign Account to the Onchain Trading Account
     #[pallet::storage]
-    pub type OnChainTradingAccount<T: Config> = StorageMap<_,Blake2_128Concat,T::AccountId,TradingAccounts<T>>;
+    pub type OnChainTradingAccount<T: Config> = CountedStorageMap<_,Blake2_128Concat,T::AccountId,TradingAccounts<T>>;
 
     #[pallet::storage]
     pub type CapitalPool<T: Config> = StorageValue<_,InvestorLP<T>>;
@@ -101,6 +131,10 @@ pub mod pallet {
             network: Networks
         }
     }
+
+
+    // 1. Learning
+    // 2. (Maths & Cryptography & Blockchain )
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {

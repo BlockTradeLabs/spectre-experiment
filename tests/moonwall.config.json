@@ -1,0 +1,79 @@
+
+{
+   "label": "moonwall_config",
+   "defaultTestTimeout": 30000,
+   "environments": [
+      {
+         "name": "spectre integration test",
+         "testFileDir": [
+            "suits/integration"
+         ],
+         "runScripts": [
+            "pre-build-contracts.ts",
+            "compile-wasm.ts compile -b ../target/release/spectre-node -o wasm -c dev"
+        ],
+         "foundation": {
+            "type": "dev",
+            "launchSpec": [
+               {
+                   "name": "spectre-node",
+                   "binPath": "../target/release/spectre-node",
+                   "options": [
+                       "--dev",
+                       "--sealing=manual",
+                       "--no-hardware-benchmarks",
+                       "--wasmtime-precompiled=wasm"
+                   ],
+                   "newRpcBehaviour": true
+               }
+           ]
+         }
+      },
+      {
+         "name": "spectre e2e test",
+         "timeout": 600000,
+         "testFileDir": [
+            "suits/e2e"
+         ],
+         "runScripts": [
+            "build-spec.sh",
+            "download-polkadot.sh",
+            "compile-wasm.ts compile -b ../target/release/tanssi-node -o wasm -c specs/tanssi-1000.json",
+            "compile-wasm.ts compile -b ../target/release/spectre-node -o wasm -c specs/spectre-node.json"
+        ],
+         "foundation": {
+            "type": "zombie",
+            "zombieSpec": {
+               "configPath": "./configs/spectreZombie.json"
+            }
+         },
+         "connections": [
+            {
+               "name": "Relay",
+               "type": "polkadotJs",
+               "endpoints": ["ws://127.0.0.1:9947"]
+           },
+           {
+               "name": "Tanssi",
+               "type": "polkadotJs",
+               "endpoints": ["ws://127.0.0.1:9948"]
+           },
+           {
+               "name": "Container2001",
+               "type": "polkadotJs",
+               "endpoints": ["ws://127.0.0.1:9950"]
+           },
+           {
+               "name": "ethers",
+               "type": "ethers",
+               "endpoints": ["ws://127.0.0.1:9950"]
+           },
+           {
+               "name": "w3",
+               "type": "web3",
+               "endpoints": ["ws://127.0.0.1:9950"]
+           }
+         ]
+      }
+   ]
+}

@@ -1,5 +1,5 @@
 [package]
-name = "container-chain-template-frontier-runtime"
+name = "spectre-runtime"
 authors = { workspace = true }
 description = "Frontier container chain template runtime"
 edition = "2021"

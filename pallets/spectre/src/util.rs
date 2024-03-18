@@ -57,6 +57,23 @@ pub mod utils {
         solana: Option<T::AccountId>
     }
 
+    #[derive(Encode, Decode, Clone, PartialEq, RuntimeDebug,DefaultNoBound, MaxEncodedLen, TypeInfo)]
+	#[scale_info(skip_type_params(T))]
+    pub struct TradeExecutionProof<T: Config> {
+        pub consensus_root: Option<BoundedVec<u8,ConstU32<4_294_967_295>>>,
+        pub consensus_proofs: Option<BoundedVec<BoundedVec<u8, ConstU32<4_294_967_295>>, ConstU32<4_294_967_295>>>,
+        pub consensus_digest: Option<BoundedVec<u8, ConstU32<4_294_967_295>>>,
+        pub consensus_digest_key: Option<BoundedVec<u8,ConstU32<4_294_967_295>>>,
+        pub extrinsic_root: BoundedVec<u8,ConstU32<4_294_967_295>>,
+        pub extrinsic_proofs: BoundedVec<u8,ConstU32<4_294_967_295>>,
+        pub extrinsic_data: BoundedVec<u8,ConstU32<4_294_967_295>>,
+        pub extrinsic_key: BoundedVec<u8,ConstU32<4_294_967_295>>,
+        pub state_root: BoundedVec<u8,ConstU32<4_294_967_295>>,
+        pub state_proofs:BoundedVec<BoundedVec<u8, ConstU32<4_294_967_295>>, ConstU32<4_294_967_295>>,
+        pub state_key: BoundedVec<u8,ConstU32<4_294_967_295>>,
+        pub target_network_blocknumber: BlockNumberFor<T>,
+    }
+
     #[derive(Encode, Decode, Clone, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
     pub enum Networks {
         Substrate,

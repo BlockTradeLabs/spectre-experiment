@@ -24,7 +24,7 @@
 pub use sc_rpc::{DenyUnsafe, SubscriptionTaskExecutor};
 
 use {
-    container_chain_template_frontier_runtime::{opaque::Block, AccountId, Hash, Index},
+    spectre_runtime::{opaque::Block, AccountId, Hash, Index},
     cumulus_client_parachain_inherent::ParachainInherentData,
     cumulus_primitives_core::{ParaId, PersistedValidationData},
     cumulus_test_relay_sproof_builder::RelayStateSproofBuilder,
@@ -227,7 +227,7 @@ where
         Box<(dyn fc_rpc::pending::ConsensusDataProvider<_>)>,
     > = Some(Box::new(
         tc_consensus::ContainerManualSealAuraConsensusDataProvider::new(
-            SlotDuration::from_millis(container_chain_template_frontier_runtime::SLOT_DURATION),
+            SlotDuration::from_millis(spectre_runtime::SLOT_DURATION),
             authorities_for_cdp,
         ),
     ));

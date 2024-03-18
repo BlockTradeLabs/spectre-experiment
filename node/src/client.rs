@@ -1,18 +1,4 @@
-// Copyright (C) Moondance Labs Ltd.
-// This file is part of Tanssi.
 
-// Tanssi is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-
-// Tanssi is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-
-// You should have received a copy of the GNU General Public License
-// along with Tanssi.  If not, see <http://www.gnu.org/licenses/>.
 
 // Substrate
 use {
@@ -20,7 +6,7 @@ use {
     sp_consensus_aura::sr25519::AuthorityId as AuraId,
 };
 // Local
-use container_chain_template_frontier_runtime::{opaque::Block, AccountId, Index};
+use spectre_runtime::{opaque::Block, AccountId, Index};
 
 use crate::eth::EthCompatRuntimeApiCollection;
 
@@ -36,11 +22,11 @@ impl NativeExecutionDispatch for TemplateRuntimeExecutor {
     type ExtendHostFunctions = HostFunctions;
 
     fn dispatch(method: &str, data: &[u8]) -> Option<Vec<u8>> {
-        container_chain_template_frontier_runtime::api::dispatch(method, data)
+    spectre_runtime::api::dispatch(method, data)
     }
 
     fn native_version() -> NativeVersion {
-        container_chain_template_frontier_runtime::native_version()
+        spectre_runtime::native_version()
     }
 }
 

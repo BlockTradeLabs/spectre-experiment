@@ -1,25 +1,9 @@
-// Copyright (C) Moondance Labs Ltd.
-// This file is part of Tanssi.
 
-// Tanssi is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-
-// Tanssi is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-
-// You should have received a copy of the GNU General Public License
-// along with Tanssi.  If not, see <http://www.gnu.org/licenses/>.
-
-//! Service and ServiceFactory implementation. Specialized wrapper over substrate service.
 
 #[allow(deprecated)]
 use {
     crate::client::TemplateRuntimeExecutor,
-    container_chain_template_frontier_runtime::{opaque::Block, RuntimeApi},
+    spectre_runtime::{opaque::Block, RuntimeApi},
     cumulus_client_cli::CollatorOptions,
     cumulus_client_consensus_common::ParachainBlockImport as TParachainBlockImport,
     cumulus_client_parachain_inherent::{MockValidationDataInherentDataProvider, MockXcmConfig},
@@ -116,7 +100,7 @@ impl sp_inherents::InherentDataProvider for MockTimestampInherentDataProvider {
         inherent_data: &mut sp_inherents::InherentData,
     ) -> Result<(), sp_inherents::Error> {
         TIMESTAMP.with(|x| {
-            *x.borrow_mut() += container_chain_template_frontier_runtime::SLOT_DURATION;
+            *x.borrow_mut() += spectre_runtime::SLOT_DURATION;
             inherent_data.put_data(sp_timestamp::INHERENT_IDENTIFIER, &*x.borrow())
         })
     }
@@ -373,7 +357,7 @@ pub async fn start_dev_node(
             consensus_data_provider: Some(Box::new(
                 tc_consensus::ContainerManualSealAuraConsensusDataProvider::new(
                     SlotDuration::from_millis(
-                        container_chain_template_frontier_runtime::SLOT_DURATION,
+                        spectre_runtime::SLOT_DURATION,
                     ),
                     authorities.clone(),
                 ),
@@ -399,7 +383,7 @@ pub async fn start_dev_node(
                 let authorities_for_cidp = authorities.clone();
                 let para_head_key = RelayWellKnownKeys::para_head(para_id);
                 let relay_slot_key = RelayWellKnownKeys::CURRENT_SLOT.to_vec();
-                let slot_duration = container_chain_template_frontier_runtime::SLOT_DURATION;
+                let slot_duration = spectre_runtime::SLOT_DURATION;
 
                 let mut timestamp: u64 = 0u64;
                 TIMESTAMP.with(|x| {
