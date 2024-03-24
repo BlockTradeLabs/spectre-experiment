@@ -37,6 +37,9 @@ use frame_support::{
     traits::fungible,
     Blake2_128Concat,
 };
+use sp_arithmetic::{Permill};
+use sp_trie::{read_trie_value, MemoryDB, TrieDB};
+use sp_core::H256;
 
 use util::*;
 
@@ -46,7 +49,7 @@ pub use pallet::*;
 #[frame_support::pallet]
 pub mod pallet {
 
-    use frame_system::pallet_prelude::OriginFor;
+    use frame_system::{ensure_none, ensure_signed, pallet_prelude::{BlockNumberFor, OriginFor}};
 
     use crate::*;
    
@@ -66,6 +69,8 @@ pub mod pallet {
 			+ fungible::hold::Mutate<Self::AccountId>
 			+ fungible::freeze::Inspect<Self::AccountId>
 			+ fungible::freeze::Mutate<Self::AccountId>;
+
+        type CapitalAllocator: CapitalAllocator<Self>;
     }
 
     #[pallet::pallet]
@@ -79,10 +84,28 @@ pub mod pallet {
 
     /// A mapping of Trader Soverign Account to the Onchain Trading Account
     #[pallet::storage]
-    pub type OnChainTradingAccount<T: Config> = CountedStorageMap<_,Blake2_128Concat,T::AccountId,TradingAccounts<T>>;
+    pub type OnChainTradingAccounts<T: Config> = CountedStorageMap<_,Blake2_128Concat,T::AccountId,TradingAccounts<T::AccountId>>;
 
     #[pallet::storage]
     pub type CapitalPool<T: Config> = StorageValue<_,InvestorLP<T>>;
+
+    /// Relayer account that is responsible for submitting txn for registering trader account and onchain trading account
+    /// relating to the trader generated onchain from the contract
+    #[pallet::storage]
+    pub type Relayer<T:Config> = StorageValue<_,T::AccountId,OptionQuery>;
+
+    // Genesis Config for `Relayer` storage
+    #[pallet::genesis_config]
+    pub struct GenesisConfig<T: Config> {
+        relayer: T::AccountId
+    }
+
+    #[pallet::genesis_build]
+    impl<T: Config> BuildGenesisConfig for GenesisConfig<T> {
+        fn build(&self){
+            Relayer::<T>::put(self.relayer.clone())
+        }
+    }
 
     #[pallet::error]
     pub enum Error<T> {
@@ -109,6 +132,11 @@ pub mod pallet {
 
         AccountUnavailable,
 
+        RelayerUnavailable, // This error should not occur as the relayer is set in the pallet genesis storage
+
+        RelayerNotRegistered,
+
+        InvalidProofSubmission
     }
 
     #[pallet::event]
@@ -118,7 +146,7 @@ pub mod pallet {
             capital_bond: BalanceOf<T>,
         },
         TraderRegistered {
-            amount_bond: BalanceOf<T>
+            id: T::AccountId
         },
         TradeVerifiedSuccesfully {
             trader_id: T::AccountId,
@@ -132,6 +160,35 @@ pub mod pallet {
         }
     }
 
+     // unsigned transaction for submitting trade execution proofs
+     #[pallet::validate_unsigned]
+     impl<T: Config> ValidateUnsigned for Pallet<T>{
+
+        type Call = Call<T>;
+
+        // empty pre-dispatch do we don't modify storage
+        fn pre_dispatch(_call: &Self::Call) -> Result<(), TransactionValidityError> {
+            Ok(())
+        }
+
+        fn validate_unsigned(source: TransactionSource, call: &Self::Call) -> TransactionValidity{
+
+           let (network, trade_execution_proof) = match call {
+                Call::verify_trade { network, trade_execution_proof} => (network, trade_execution_proof),
+                _ => Err(TransactionValidityError::Invalid(InvalidTransaction::Call))?,
+            };
+
+            // verify proofs submitted per the network
+
+            Ok(ValidTransaction{
+                priority: 100,
+                requires: vec![],
+                provides: vec![],
+                longevity: TransactionLongevity::MAX,
+                propagate: true,
+            })
+        } 
+    }
 
     // 1. Learning
     // 2. (Maths & Cryptography & Blockchain )
@@ -146,21 +203,44 @@ pub mod pallet {
 
         #[pallet::call_index(1)]
         #[pallet::weight(Weight::default())]
-        pub fn register_trader(origin:OriginFor<T>) -> DispatchResult {
+        pub fn register_trader(origin:OriginFor<T>, trader_id: T::AccountId, onchain_trading_accounts: TradingAccounts<T::AccountId>) -> DispatchResult {
+            let relayer_id  = ensure_signed(origin)?;
+            // check the signer relayer is registered on chain
+            let registered_relayer_id = Relayer::<T>::get().ok_or(Error::<T>::RelayerUnavailable)?;
+            ensure!(relayer_id == registered_relayer_id, Error::<T>::RelayerNotRegistered);
+
+            // register the accounts
+            OnChainTradingAccounts::<T>::insert(trader_id.clone(),&onchain_trading_accounts);
+
+            Self::deposit_event(
+                Event::TraderRegistered {
+                    id: trader_id
+                }
+            );
             Ok(())   
         }
 
         /// Allocate capital from the pool to the trader onchain trading account
         #[pallet::call_index(2)]
         #[pallet::weight(Weight::default())]
-        pub fn allocate_capital(origin:OriginFor<T>) -> DispatchResult {
+        pub fn allocate_capital(origin:OriginFor<T>, network:Networks) -> DispatchResult {
+            let trader_id = ensure_signed(origin)?;
+            T::CapitalAllocator::allocate_capital(network, trader_id)?;
             Ok(())
         }
 
         #[pallet::call_index(3)]
         #[pallet::weight(Weight::default())]
-        pub fn verify_trade(origin:OriginFor<T>) -> DispatchResult {
+        pub fn verify_trade(origin:OriginFor<T>, network: Networks, trade_execution_proof: TradeExecutionProof<BlockNumberFor<T>>) -> DispatchResult {
+            ensure_none(origin)?;
+            <Pallet<T> as ValidateUnsigned>::validate_unsigned(
+                TransactionSource::External,
+                &Call::verify_trade { network, trade_execution_proof},
+            )
+            .map_err(|_| Error::<T>::InvalidProofSubmission)?;
             Ok(())
         }
     }
+
+   
 }

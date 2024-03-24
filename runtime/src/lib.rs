@@ -852,6 +852,23 @@ impl pallet_multisig::Config for Runtime {
     type WeightInfo = pallet_multisig::weights::SubstrateWeight<Runtime>;
 }
 
+// ORML pallets
+
+// orml_traits::parameter_type_with_key! {
+// 	pub MinXcmReserveFee: |location: orml_traits::Location| -> Option<u128> {
+// 		#[allow(clippy::match_ref_pats)] // false positive
+// 		match (location.parents, location.first_interior()) {
+// 			(1, Some(Parachain(parachains::statemine::ID))) => Some(4_000_000_000),
+// 			_ => None,
+// 		}
+// 	};
+// }
+
+// orml_traits::parameter_type_with_key! {
+// 	pub ParachainMinFee: |_location: Location| -> Option<u128> {
+// 		None
+// 	};
+// }
 impl_tanssi_pallets_config!(Runtime);
 
 // Create the runtime by composing the FRAME pallets that were previously configured.

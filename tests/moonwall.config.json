@@ -1,17 +1,14 @@
 
 {
-   "label": "moonwall_config",
+   "$schema": "https://raw.githubusercontent.com/Moonsong-Labs/moonwall/main/packages/types/config_schema.json",
+   "label": "Spectre Moonwall Config",
    "defaultTestTimeout": 30000,
    "environments": [
       {
-         "name": "spectre integration test",
+         "name": "spectre_integration_test",
          "testFileDir": [
             "suits/integration"
          ],
-         "runScripts": [
-            "pre-build-contracts.ts",
-            "compile-wasm.ts compile -b ../target/release/spectre-node -o wasm -c dev"
-        ],
          "foundation": {
             "type": "dev",
             "launchSpec": [
@@ -24,21 +21,21 @@
                        "--no-hardware-benchmarks",
                        "--wasmtime-precompiled=wasm"
                    ],
+                   "disableDefaultEthProviders": true,
                    "newRpcBehaviour": true
                }
            ]
          }
       },
       {
-         "name": "spectre e2e test",
+         "name": "spectre_e2e_test",
          "timeout": 600000,
          "testFileDir": [
             "suits/e2e"
          ],
          "runScripts": [
             "build-spec.sh",
-            "download-polkadot.sh",
-            "compile-wasm.ts compile -b ../target/release/tanssi-node -o wasm -c specs/tanssi-1000.json",
+            "compile-wasm.ts compile -b ./tmp/tanssi-node -o wasm -c specs/tanssi-1000.json",
             "compile-wasm.ts compile -b ../target/release/spectre-node -o wasm -c specs/spectre-node.json"
         ],
          "foundation": {

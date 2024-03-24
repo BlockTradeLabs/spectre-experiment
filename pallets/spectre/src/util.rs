@@ -50,16 +50,15 @@ pub mod utils {
     }
 
     #[derive(Encode, Decode, Clone, PartialEq, RuntimeDebug,DefaultNoBound, MaxEncodedLen, TypeInfo)]
-	#[scale_info(skip_type_params(T))]
-    pub struct TradingAccounts<T: Config>{
-        substrate: Option<T::AccountId>,
-        ethereum: Option<T::AccountId>,
-        solana: Option<T::AccountId>
+        pub struct TradingAccounts<AccountId>{
+        substrate: Option<AccountId>,
+        ethereum: Option<AccountId>,
+        solana: Option<AccountId>
     }
 
-    #[derive(Encode, Decode, Clone, PartialEq, RuntimeDebug,DefaultNoBound, MaxEncodedLen, TypeInfo)]
+    #[derive(Encode, Decode, Clone, PartialEq, RuntimeDebug,MaxEncodedLen, TypeInfo)]
 	#[scale_info(skip_type_params(T))]
-    pub struct TradeExecutionProof<T: Config> {
+    pub struct TradeExecutionProof<BlockNumber> {
         pub consensus_root: Option<BoundedVec<u8,ConstU32<4_294_967_295>>>,
         pub consensus_proofs: Option<BoundedVec<BoundedVec<u8, ConstU32<4_294_967_295>>, ConstU32<4_294_967_295>>>,
         pub consensus_digest: Option<BoundedVec<u8, ConstU32<4_294_967_295>>>,
@@ -71,7 +70,7 @@ pub mod utils {
         pub state_root: BoundedVec<u8,ConstU32<4_294_967_295>>,
         pub state_proofs:BoundedVec<BoundedVec<u8, ConstU32<4_294_967_295>>, ConstU32<4_294_967_295>>,
         pub state_key: BoundedVec<u8,ConstU32<4_294_967_295>>,
-        pub target_network_blocknumber: BlockNumberFor<T>,
+        pub target_network_blocknumber: BlockNumber,
     }
 
     #[derive(Encode, Decode, Clone, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
@@ -80,5 +79,16 @@ pub mod utils {
         Ethereum,
         Solana,
         Sei
+    }
+
+    // Traits
+    pub trait CapitalAllocator<T: Config> {
+        fn allocate_capital(network: Networks, trader_id:T::AccountId) -> DispatchResult;
+    }
+
+    impl<T: Config> CapitalAllocator<T> for () {
+        fn allocate_capital(network: Networks, trader_id:T::AccountId) -> DispatchResult {
+           Ok(()) 
+        }
     }
 }
