@@ -18,6 +18,7 @@ Cargo.lock
 .idea
 .vscode
 
+/tests/tmp
 /tests/node_modules
 # polkadot-launch logs
 *.log
