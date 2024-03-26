@@ -192,6 +192,9 @@ fn testnet_genesis(
         // This should initialize it to whatever we have set in the pallet
         polkadot_xcm: PolkadotXcmConfig::default(),
         tx_pause: Default::default(),
+        spectre: spectre_runtime::SpectreConfig {
+            relayer: Some(root_key)
+        }
     };
 
     serde_json::to_value(g).unwrap()

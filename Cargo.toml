@@ -36,7 +36,7 @@ unsafe-code = { level = "deny", priority = 1 }
 
 # Local
 spectre-runtime = {path = "runtime", features = [ "std" ] }
-pallet-spectre = {path = "pallets/spectre", features = ["std"]}
+pallet-spectre = {path = "pallets/spectre", default-features = false}
 
 # ORML
 orml-xtokens = { git = "https://github.com/open-web3-stack/open-runtime-module-library", default-features = false, rev = "7ecebeab7e3dbc2226ed58d32ee159271a8176ae"}

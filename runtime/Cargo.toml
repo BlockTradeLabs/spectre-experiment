@@ -27,6 +27,7 @@ dp-consensus = { workspace = true }
 dp-impl-tanssi-pallets-config = { workspace = true }
 pallet-cc-authorities-noting = { workspace = true }
 runtime-common = { workspace = true }
+pallet-spectre = {workspace = true}
 
 # ORML
 orml-tokens = { workspace = true}
@@ -223,7 +224,8 @@ std = [
 	"xcm-primitives/std",
 	"orml-tokens/std",
 	"orml-xtokens/std",
-	"orml-traits/std"
+	"orml-traits/std",
+	"pallet-spectre/std"
 ]
 
 # Allow to print logs details (no wasm:stripped)

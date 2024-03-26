@@ -95,6 +95,7 @@ pub use {
     sp_consensus_aura::sr25519::AuthorityId as AuraId,
     sp_runtime::{MultiAddress, Perbill, Permill},
 };
+use pallet_spectre;
 
 // Polkadot imports
 use polkadot_runtime_common::BlockHashCount;
@@ -869,6 +870,14 @@ impl pallet_multisig::Config for Runtime {
 // 		None
 // 	};
 // }
+
+// Local pallets
+impl pallet_spectre::Config for Runtime {
+    type RuntimeEvent = RuntimeEvent;
+    type NativeBalance = Balances;
+    type CapitalAllocator = ();
+}
+
 impl_tanssi_pallets_config!(Runtime);
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
@@ -894,30 +903,32 @@ construct_runtime!(
         Multisig: pallet_multisig = 16,
 
         // ContainerChain
-        AuthoritiesNoting: pallet_cc_authorities_noting = 50,
-        AuthorInherent: pallet_author_inherent = 51,
+        AuthoritiesNoting: pallet_cc_authorities_noting = 30,
+        AuthorInherent: pallet_author_inherent = 31,
 
         // Frontier
-        Ethereum: pallet_ethereum = 60,
-        EVM: pallet_evm = 61,
-        EVMChainId: pallet_evm_chain_id = 62,
-        BaseFee: pallet_base_fee = 64,
-        HotfixSufficients: pallet_hotfix_sufficients = 65,
-        TransactionPayment: pallet_transaction_payment = 66,
+        Ethereum: pallet_ethereum = 40,
+        EVM: pallet_evm = 41,
+        EVMChainId: pallet_evm_chain_id = 42,
+        BaseFee: pallet_base_fee = 44,
+        HotfixSufficients: pallet_hotfix_sufficients = 45,
+        TransactionPayment: pallet_transaction_payment = 46,
 
         // XCM
-        XcmpQueue: cumulus_pallet_xcmp_queue::{Pallet, Storage, Event<T>} = 70,
-        CumulusXcm: cumulus_pallet_xcm::{Pallet, Event<T>, Origin} = 71,
-        DmpQueue: cumulus_pallet_dmp_queue::{Pallet, Call, Storage, Event<T>} = 72,
-        PolkadotXcm: pallet_xcm::{Pallet, Call, Storage, Event<T>, Origin, Config<T>} = 73,
-        MessageQueue: pallet_message_queue::{Pallet, Call, Storage, Event<T>} = 74,
-        ForeignAssets: pallet_assets::<Instance1>::{Pallet, Call, Storage, Event<T>} = 75,
-        ForeignAssetsCreator: pallet_foreign_asset_creator::{Pallet, Call, Storage, Event<T>} = 76,
-        AssetRate: pallet_asset_rate::{Pallet, Call, Storage, Event<T>} = 77,
-        XcmExecutorUtils: pallet_xcm_executor_utils::{Pallet, Call, Storage, Event<T>} = 78,
+        XcmpQueue: cumulus_pallet_xcmp_queue::{Pallet, Storage, Event<T>} = 50,
+        CumulusXcm: cumulus_pallet_xcm::{Pallet, Event<T>, Origin} = 51,
+        DmpQueue: cumulus_pallet_dmp_queue::{Pallet, Call, Storage, Event<T>} = 52,
+        PolkadotXcm: pallet_xcm::{Pallet, Call, Storage, Event<T>, Origin, Config<T>} = 53,
+        MessageQueue: pallet_message_queue::{Pallet, Call, Storage, Event<T>} = 54,
+        ForeignAssets: pallet_assets::<Instance1>::{Pallet, Call, Storage, Event<T>} = 55,
+        ForeignAssetsCreator: pallet_foreign_asset_creator::{Pallet, Call, Storage, Event<T>} = 56,
+        AssetRate: pallet_asset_rate::{Pallet, Call, Storage, Event<T>} = 57,
+        XcmExecutorUtils: pallet_xcm_executor_utils::{Pallet, Call, Storage, Event<T>} = 58,
 
-        RootTesting: pallet_root_testing = 100,
-        AsyncBacking: pallet_async_backing::{Pallet, Storage} = 110,
+        RootTesting: pallet_root_testing = 70,
+        AsyncBacking: pallet_async_backing::{Pallet, Storage} = 71,
+
+        Spectre: pallet_spectre = 80,
     }
 );
 
