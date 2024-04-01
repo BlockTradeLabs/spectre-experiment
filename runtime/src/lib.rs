@@ -96,7 +96,7 @@ pub use {
     sp_runtime::{MultiAddress, Perbill, Permill},
 };
 use pallet_spectre;
-
+use staging_xcm::latest::prelude::*;
 // Polkadot imports
 use polkadot_runtime_common::BlockHashCount;
 
@@ -865,11 +865,11 @@ impl pallet_multisig::Config for Runtime {
 // 	};
 // }
 
-// orml_traits::parameter_type_with_key! {
-// 	pub ParachainMinFee: |_location: Location| -> Option<u128> {
-// 		None
-// 	};
-// }
+orml_traits::parameter_type_with_key! {
+	pub ParachainMinFee: |_location: MultiLocation| -> Option<u128> {
+		None
+	};
+}
 
 // Local pallets
 impl pallet_spectre::Config for Runtime {
