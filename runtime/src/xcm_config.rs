@@ -17,7 +17,7 @@
 use {
     super::{
         precompiles::FOREIGN_ASSET_PRECOMPILE_ADDRESS_PREFIX, AccountId, AllPalletsWithSystem,
-        AssetRate, Balance, Balances, ForeignAssetsCreator, MaintenanceMode, MessageQueue,
+        Balance, Balances, MaintenanceMode, MessageQueue,
         ParachainInfo, ParachainSystem, PolkadotXcm, Runtime, RuntimeBlockWeights, RuntimeCall,
         RuntimeEvent, RuntimeOrigin, WeightToFee, XcmpQueue,
     },
@@ -163,7 +163,7 @@ pub type XcmOriginToTransactDispatchOrigin = (
 );
 
 /// Means for transacting assets on this chain.
-pub type AssetTransactors = (CurrencyTransactor, ForeignFungiblesTransactor);
+// pub type AssetTransactors = (CurrencyTransactor, ForeignFungiblesTransactor);
 pub type XcmWeigher = FixedWeightBounds<UnitWeightCost, RuntimeCall, MaxInstructions>;
 
 /// The means for routing XCM messages which are not for local execution into the right message
@@ -179,7 +179,7 @@ pub struct XcmConfig;
 impl staging_xcm_executor::Config for XcmConfig {
     type RuntimeCall = RuntimeCall;
     type XcmSender = XcmRouter;
-    type AssetTransactor = AssetTransactors;
+    type AssetTransactor = ();/*AssetTransactors*/
     type OriginConverter = XcmOriginToTransactDispatchOrigin;
     type IsReserve = IsReserveFilter<Runtime>;
     type IsTeleporter = IsTeleportFilter<Runtime>;
@@ -187,15 +187,15 @@ impl staging_xcm_executor::Config for XcmConfig {
     type Barrier = XcmBarrier;
     type Weigher = XcmWeigher;
     type Trader = (
-        UsingComponents<WeightToFee, SelfReserve, AccountId, Balances, ()>,
-        cumulus_primitives_utility::TakeFirstAssetTrader<
-            AccountId,
-            AssetRateAsMultiplier,
-            // Use this currency when it is a fungible asset matching the given location or name:
-            (ConvertedConcreteId<AssetId, Balance, ForeignAssetsCreator, JustTry>,),
-            ForeignAssets,
-            (),
-        >,
+        // UsingComponents<WeightToFee, SelfReserve, AccountId, Balances, ()>,
+        // cumulus_primitives_utility::TakeFirstAssetTrader<
+        //     AccountId,
+        //     AssetRateAsMultiplier,
+        //     // Use this currency when it is a fungible asset matching the given location or name:
+        //     (ConvertedConcreteId<AssetId, Balance, ForeignAssetsCreator, JustTry>,),
+        //     ForeignAssets,
+        //     (),
+        // >,
     );
     type ResponseHandler = PolkadotXcm;
     type AssetTrap = PolkadotXcm;
@@ -352,8 +352,8 @@ impl AccountIdAssetIdConversion<AccountId, AssetId> for Runtime {
 }
 
 pub type AssetId = u16;
-pub type ForeignAssetsInstance = pallet_assets::Instance1;
-impl pallet_assets::Config<ForeignAssetsInstance> for Runtime {
+
+impl pallet_assets::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
     type Balance = Balance;
     type AssetId = AssetId;
@@ -376,27 +376,27 @@ impl pallet_assets::Config<ForeignAssetsInstance> for Runtime {
     type BenchmarkHelper = ForeignAssetBenchmarkHelper;
 }
 
-impl pallet_foreign_asset_creator::Config for Runtime {
-    type RuntimeEvent = RuntimeEvent;
-    type ForeignAsset = MultiLocation;
-    type ForeignAssetCreatorOrigin = EnsureRoot<AccountId>;
-    type ForeignAssetModifierOrigin = EnsureRoot<AccountId>;
-    type ForeignAssetDestroyerOrigin = EnsureRoot<AccountId>;
-    type Fungibles = ForeignAssets;
-    type WeightInfo = pallet_foreign_asset_creator::weights::SubstrateWeight<Runtime>;
-}
+// impl pallet_foreign_asset_creator::Config for Runtime {
+//     type RuntimeEvent = RuntimeEvent;
+//     type ForeignAsset = MultiLocation;
+//     type ForeignAssetCreatorOrigin = EnsureRoot<AccountId>;
+//     type ForeignAssetModifierOrigin = EnsureRoot<AccountId>;
+//     type ForeignAssetDestroyerOrigin = EnsureRoot<AccountId>;
+//     type Fungibles = ForeignAssets;
+//     type WeightInfo = pallet_foreign_asset_creator::weights::SubstrateWeight<Runtime>;
+// }
 
-impl pallet_asset_rate::Config for Runtime {
-    type CreateOrigin = EnsureRoot<AccountId>;
-    type RemoveOrigin = EnsureRoot<AccountId>;
-    type UpdateOrigin = EnsureRoot<AccountId>;
-    type Currency = Balances;
-    type AssetKind = AssetId;
-    type RuntimeEvent = RuntimeEvent;
-    type WeightInfo = pallet_asset_rate::weights::SubstrateWeight<Runtime>;
-    #[cfg(feature = "runtime-benchmarks")]
-    type BenchmarkHelper = ForeignAssetBenchmarkHelper;
-}
+// impl pallet_asset_rate::Config for Runtime {
+//     type CreateOrigin = EnsureRoot<AccountId>;
+//     type RemoveOrigin = EnsureRoot<AccountId>;
+//     type UpdateOrigin = EnsureRoot<AccountId>;
+//     type Currency = Balances;
+//     type AssetKind = AssetId;
+//     type RuntimeEvent = RuntimeEvent;
+//     type WeightInfo = pallet_asset_rate::weights::SubstrateWeight<Runtime>;
+//     #[cfg(feature = "runtime-benchmarks")]
+//     type BenchmarkHelper = ForeignAssetBenchmarkHelper;
+// }
 
 parameter_types! {
     pub const TrustPolicyMaxAssets: u32 = 1000;
@@ -418,22 +418,22 @@ use {
     staging_xcm_executor::traits::JustTry,
 };
 
-/// Means for transacting foreign assets from different global consensus.
-pub type ForeignFungiblesTransactor = FungiblesAdapter<
-    // Use this fungibles implementation:
-    ForeignAssets,
-    // Use this currency when it is a fungible asset matching the given location or name:
-    (ConvertedConcreteId<AssetId, Balance, ForeignAssetsCreator, JustTry>,),
-    // Convert an XCM MultiLocation into a local account id:
-    LocationToAccountId,
-    // Our chain's account ID type (we can't get away without mentioning it explicitly):
-    AccountId,
-    // We dont need to check teleports here.
-    NoChecking,
-    // The account to use for tracking teleports.
-    CheckingAccount,
->;
+// Means for transacting foreign assets from different global consensus.
+// pub type ForeignFungiblesTransactor = FungiblesAdapter<
+//     // Use this fungibles implementation:
+//     ForeignAssets,
+//     // Use this currency when it is a fungible asset matching the given location or name:
+//     (ConvertedConcreteId<AssetId, Balance, ForeignAsse JustTry>,),
+//     // Convert an XCM MultiLocation into a local account id:
+//     LocationToAccountId,
+//     // Our chain's account ID type (we can't get away without mentioning it explicitly):
+//     AccountId,
+//     // We dont need to check teleports here.
+//     NoChecking,
+//     // The account to use for tracking teleports.
+//     CheckingAccount,
+// >;
 
-/// Multiplier used for dedicated `TakeFirstAssetTrader` with `ForeignAssets` instance.
-pub type AssetRateAsMultiplier =
-    AssetFeeAsExistentialDepositMultiplier<Runtime, WeightToFee, AssetRate, ForeignAssetsInstance>;
+// Multiplier used for dedicated `TakeFirstAssetTrader` with `ForeignAssets` instance.
+// pub type AssetRateAsMultiplier =
+//     AssetFeeAsExistentialDepositMultiplier<Runtime, WeightToFee, AssetRate, ForeignAssetsInstance>;

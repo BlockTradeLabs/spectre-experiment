@@ -61,7 +61,7 @@ pub mod pallet {
     >>::Balance;
 
     #[pallet::config]
-    pub trait Config: frame_system::Config {
+    pub trait Config: frame_system::Config + pallet_assets::Config {
 
         type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
@@ -76,6 +76,8 @@ pub mod pallet {
         // Add trait associated type for asset functionalities
 
         type CapitalAllocator: CapitalAllocator<Self>;
+
+        type TradeExecutionVerifier: TradeExecutionVerifier<Self>;
     }
 
     #[pallet::pallet]
@@ -91,6 +93,7 @@ pub mod pallet {
     #[pallet::storage]
     pub type OnChainTradingAccounts<T: Config> = CountedStorageMap<_,Blake2_128Concat,T::AccountId,TradingAccounts<T::AccountId>>;
 
+    /// A mapping of asset id to capital pool
     #[pallet::storage]
     pub type CapitalPool<T: Config> = StorageValue<_,InvestorLP<T>>;
 
@@ -190,71 +193,8 @@ pub mod pallet {
             };
 
             // verify proofs submitted per the network
-            match network {
-                Networks::Substrate => {
-
-                    let extrinsic_root = H256::from_slice(&trade_execution_proof.extrinsic_root);
-                    let extrinsics_proof_nodes = &trade_execution_proof.extrinsic_proofs;
-                    let extrinsic_data = &trade_execution_proof.extrinsic_data;
-                    let extrinsic_key = &trade_execution_proof.extrinsic_key;
-                    // state data
-                    let state_root = H256::from_slice(&trade_execution_proof.state_root);
-                    let state_proof_nodes = &trade_execution_proof.state_proofs;
-                    let state_key = &trade_execution_proof.state_key;
-
-                     // verify extrinsic inclusion
-                    if let Err(_extrinsic_proof_error) =
-                    sp_trie::verify_trie_proof:: <sp_trie::LayoutV1<BlakeTwo256> ,_,Vec<u8> ,Vec<u8> >(
-                        &extrinsic_root,
-                        &*extrinsics_proof_nodes.to_vec(),
-                        &[(extrinsic_key.to_vec(), Some(extrinsic_data.to_vec()))],
-                    )
-                    {
-                        return Err(TransactionValidityError::Unknown(UnknownTransaction::Custom(1))); // 1 for extrinsic verification error
-                    }
-
-                    // verify state change
-                    // I think we dont need to do state verification as we will be just fetching the value at the end of the day manually from the proofs
-                    // if let Err(_state_proof_error) =
-                    // verify_trie_proof::<LayoutV1<BlakeTwo256>, _, Vec<u8>, Vec<u8>>(
-                    //     &state_root,
-                    //     &*state_proof_nodes.to_vec(),
-                    //     &[(state_key.to_vec(), None)],
-                    // )
-                    // {
-                    //     return Err(TransactionValidityError::Unknown(UnknownTransaction::Custom(2))); // 2 for state verification error
-                    // }
-
-                     // get the balance data from state data
-                    let database = StorageProof::new(state_proof_nodes.to_vec()).to_memory_db::<BlakeTwo256>();
-                    let encoded_balance = read_trie_value::<LayoutV1<BlakeTwo256>, _>(
-                        &database,
-                        &state_root,
-                        &state_key,
-                        None,
-                        None,
-                    )
-                    .map_err(|_| TransactionValidityError::Unknown(UnknownTransaction::Custom(3)))?
-                    .ok_or(TransactionValidityError::Unknown(UnknownTransaction::Custom(3)))?;
-
-                    let trading_roi: u128 /*This should asset id type */ = Decode::decode(&mut &encoded_balance[..])
-                        .map_err(|_| TransactionValidityError::Unknown(UnknownTransaction::Custom(4)))?;
-
-                    // reward algorithm
-                    //T::RewardDistribution::distribute_roi(network,trader_id);
-                    
-                    Ok(ValidTransaction{
-                        priority: 100,
-                        requires: vec![],
-                        provides: vec![],
-                        longevity: TransactionLongevity::MAX,
-                        propagate: true,
-                    })
-                },
-                _ => {
-                    Err(TransactionValidityError::Invalid(InvalidTransaction::Call))        
-                }
-            }
+            T::TradeExecutionVerifier::verify_trade_execution(trader_id.clone(),network.clone(),trade_execution_proof.clone())
+            
         } 
     }
 
@@ -263,7 +203,7 @@ pub mod pallet {
     impl<T: Config> Pallet<T> {
         #[pallet::call_index(0)]
         #[pallet::weight(Weight::default())]
-        pub fn register_investor(origin:OriginFor<T>) -> DispatchResult {
+        pub fn register_investor(origin:OriginFor<T>, capital_amount: T::AssetId) -> DispatchResult {
             Ok(())
         }
 

@@ -97,6 +97,10 @@ pub use {
 };
 use pallet_spectre;
 use staging_xcm::latest::prelude::*;
+// use orml_tokens;
+// use orml_xtokens;
+// use orml_traits;
+
 // Polkadot imports
 use polkadot_runtime_common::BlockHashCount;
 
@@ -856,7 +860,7 @@ impl pallet_multisig::Config for Runtime {
 // ORML pallets
 
 // orml_traits::parameter_type_with_key! {
-// 	pub MinXcmReserveFee: |location: orml_traits::Location| -> Option<u128> {
+// 	pub MinXcmReserveFee: |location: orml_traits::MultiLocation| -> Option<u128> {
 // 		#[allow(clippy::match_ref_pats)] // false positive
 // 		match (location.parents, location.first_interior()) {
 // 			(1, Some(Parachain(parachains::statemine::ID))) => Some(4_000_000_000),
@@ -865,17 +869,20 @@ impl pallet_multisig::Config for Runtime {
 // 	};
 // }
 
-orml_traits::parameter_type_with_key! {
-	pub ParachainMinFee: |_location: MultiLocation| -> Option<u128> {
-		None
-	};
-}
+// orml_traits::parameter_type_with_key! {
+// 	pub ParachainMinFee: |_location: MultiLocation| -> Option<u128> {
+// 		None
+// 	};
+// }
+
 
 // Local pallets
 impl pallet_spectre::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
     type NativeBalance = Balances;
     type CapitalAllocator = ();
+    
+    type TradeExecutionVerifier = ();
 }
 
 impl_tanssi_pallets_config!(Runtime);
@@ -920,9 +927,9 @@ construct_runtime!(
         DmpQueue: cumulus_pallet_dmp_queue::{Pallet, Call, Storage, Event<T>} = 52,
         PolkadotXcm: pallet_xcm::{Pallet, Call, Storage, Event<T>, Origin, Config<T>} = 53,
         MessageQueue: pallet_message_queue::{Pallet, Call, Storage, Event<T>} = 54,
-        ForeignAssets: pallet_assets::<Instance1>::{Pallet, Call, Storage, Event<T>} = 55,
-        ForeignAssetsCreator: pallet_foreign_asset_creator::{Pallet, Call, Storage, Event<T>} = 56,
-        AssetRate: pallet_asset_rate::{Pallet, Call, Storage, Event<T>} = 57,
+        ForeignAssets: pallet_assets::{Pallet, Call, Storage, Event<T>}  = 55,
+        // ForeignAssetsCreator: pallet_foreign_asset_creator::{Pallet, Call, Storage, Event<T>} = 56,
+        // AssetRate: pallet_asset_rate::{Pallet, Call, Storage, Event<T>} = 57,
         XcmExecutorUtils: pallet_xcm_executor_utils::{Pallet, Call, Storage, Event<T>} = 58,
 
         RootTesting: pallet_root_testing = 70,
@@ -949,8 +956,8 @@ mod benches {
         [pallet_xcm, PalletXcmExtrinsicsBenchmark::<Runtime>]
         [pallet_xcm_benchmarks::generic, pallet_xcm_benchmarks::generic::Pallet::<Runtime>]
         [pallet_assets, ForeignAssets]
-        [pallet_asset_rate, AssetRate]
-        [pallet_foreign_asset_creator, ForeignAssetsCreator]
+        // [pallet_asset_rate, AssetRate]
+        // [pallet_foreign_asset_creator, ForeignAssetsCreator]
     );
 }
 

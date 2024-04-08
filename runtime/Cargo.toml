@@ -30,9 +30,9 @@ runtime-common = { workspace = true }
 pallet-spectre = {workspace = true}
 
 # ORML
-orml-tokens = { workspace = true}
-orml-xtokens = { workspace = true }
-orml-traits = { workspace = true }
+orml-tokens = { workspace = true, default-features = false}
+orml-xtokens = { workspace = true, default-features = false}
+orml-traits = { workspace = true, default-features = false}
 # Moonkit
 nimbus-primitives = { workspace = true }
 pallet-async-backing = { workspace = true }
