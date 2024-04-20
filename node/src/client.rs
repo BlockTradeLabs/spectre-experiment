@@ -1,5 +1,3 @@
-
-
 // Substrate
 use {
     sc_executor::{NativeExecutionDispatch, NativeVersion},
@@ -22,7 +20,7 @@ impl NativeExecutionDispatch for TemplateRuntimeExecutor {
     type ExtendHostFunctions = HostFunctions;
 
     fn dispatch(method: &str, data: &[u8]) -> Option<Vec<u8>> {
-    spectre_runtime::api::dispatch(method, data)
+        spectre_runtime::api::dispatch(method, data)
     }
 
     fn native_version() -> NativeVersion {

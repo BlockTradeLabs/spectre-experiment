@@ -18,8 +18,9 @@ sp-arithmetic = { workspace = true }
 sp-trie = { workspace = true }
 sp-core = { workspace = true }
 pallet-assets = { workspace = true }
-# orml-xtokens ={ workspace=true }
-# orml-tokens = { workspace = true}
+orml-xtokens ={ workspace=true }
+orml-tokens = { workspace = true}
+orml-asset-registry = {workspace = true}
 
 [features]
 default = [ "std" ]
@@ -32,8 +33,10 @@ std = [
     "sp-arithmetic/std",
     "sp-trie/std",
     "sp-core/std",
-    "pallet-assets/std"
-    # "orml-xtokens/std"
+    "pallet-assets/std",
+    "orml-xtokens/std",
+    "orml-tokens/std",
+    "orml-asset-registry/std"
 ]
 [lints]
 workspace = true

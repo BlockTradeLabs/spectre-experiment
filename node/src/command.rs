@@ -1,12 +1,9 @@
-
-
 use {
     crate::{
         chain_spec,
         cli::{Cli, RelayChainCli, Subcommand},
         service::{self, frontier_database_dir, NodeConfig},
     },
-    spectre_runtime::Block,
     cumulus_primitives_core::ParaId,
     frame_benchmarking_cli::{BenchmarkCmd, SUBSTRATE_REFERENCE_HARDWARE},
     log::{info, warn},
@@ -23,6 +20,7 @@ use {
     },
     sp_core::hexdisplay::HexDisplay,
     sp_runtime::traits::{AccountIdConversion, Block as BlockT},
+    spectre_runtime::Block,
     std::net::SocketAddr,
 };
 

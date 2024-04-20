@@ -1,4 +1,3 @@
-
 // Local
 use spectre_runtime::opaque::Block;
 

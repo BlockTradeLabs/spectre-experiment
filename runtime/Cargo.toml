@@ -1,7 +1,7 @@
 [package]
 name = "spectre-runtime"
 authors = { workspace = true }
-description = "Frontier container chain template runtime"
+description = ""
 edition = "2021"
 license = "GPL-3.0-only"
 version = "0.1.0"
@@ -21,18 +21,17 @@ scale-info = { workspace = true, features = [ "derive" ] }
 serde = { workspace = true, optional = true, features = [ "derive" ] }
 smallvec = { workspace = true }
 
+#Orml
+orml-traits = {workspace = true}
+
 # Local
 ccp-xcm = { workspace = true }
 dp-consensus = { workspace = true }
 dp-impl-tanssi-pallets-config = { workspace = true }
 pallet-cc-authorities-noting = { workspace = true }
 runtime-common = { workspace = true }
-pallet-spectre = {workspace = true}
+pallet-spectre = { workspace = true }
 
-# ORML
-orml-tokens = { workspace = true, default-features = false}
-orml-xtokens = { workspace = true, default-features = false}
-orml-traits = { workspace = true, default-features = false}
 # Moonkit
 nimbus-primitives = { workspace = true }
 pallet-async-backing = { workspace = true }
@@ -56,6 +55,7 @@ frame-support = { workspace = true }
 frame-system = { workspace = true }
 frame-system-rpc-runtime-api = { workspace = true }
 frame-try-runtime = { workspace = true, optional = true }
+pallet-scheduler = {workspace = true}
 pallet-asset-rate = { workspace = true }
 pallet-assets = { workspace = true }
 pallet-balances = { workspace = true, features = [ "insecure_zero_ed" ] }
@@ -222,10 +222,8 @@ std = [
 	"staging-xcm-executor/std",
 	"staging-xcm/std",
 	"xcm-primitives/std",
-	"orml-tokens/std",
-	"orml-xtokens/std",
-	"orml-traits/std",
-	"pallet-spectre/std"
+	"pallet-spectre/std",
+	"pallet-scheduler/std"
 ]
 
 # Allow to print logs details (no wasm:stripped)

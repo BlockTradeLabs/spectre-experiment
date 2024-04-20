@@ -1,10 +1,4 @@
-
-
 use {
-    spectre_runtime::{
-        AccountId, EVMChainIdConfig, EVMConfig, MaintenanceModeConfig, MigrationsConfig,
-        PolkadotXcmConfig, Precompiles,
-    },
     cumulus_primitives_core::ParaId,
     fp_evm::GenesisAccount,
     hex_literal::hex,
@@ -12,13 +6,15 @@ use {
     sc_network::config::MultiaddrWithPeerId,
     sc_service::ChainType,
     serde::{Deserialize, Serialize},
+    spectre_runtime::{
+        AccountId, EVMChainIdConfig, EVMConfig, MaintenanceModeConfig, MigrationsConfig,
+        PolkadotXcmConfig, Precompiles,
+    },
 };
 
 /// Specialized `ChainSpec` for the normal parachain runtime.
-pub type ChainSpec = sc_service::GenericChainSpec<
-    spectre_runtime::RuntimeGenesisConfig,
-    Extensions,
->;
+pub type ChainSpec =
+    sc_service::GenericChainSpec<spectre_runtime::RuntimeGenesisConfig, Extensions>;
 
 /// Orcherstrator's parachain id
 pub const ORCHESTRATOR: ParaId = ParaId::new(1000);
@@ -60,8 +56,7 @@ pub fn development_config(para_id: ParaId, boot_nodes: Vec<String>) -> ChainSpec
         .collect();
 
     ChainSpec::builder(
-        spectre_runtime::WASM_BINARY
-            .expect("WASM binary was not built, please build it!"),
+        spectre_runtime::WASM_BINARY.expect("WASM binary was not built, please build it!"),
         Extensions {
             relay_chain: "rococo-local".into(), // You MUST set this to the correct network!
             para_id: para_id.into(),
@@ -101,15 +96,14 @@ pub fn local_testnet_config(para_id: ParaId, boot_nodes: Vec<String>) -> ChainSp
         .collect();
 
     ChainSpec::builder(
-        spectre_runtime::WASM_BINARY
-            .expect("WASM binary was not built, please build it!"),
+        spectre_runtime::WASM_BINARY.expect("WASM binary was not built, please build it!"),
         Extensions {
             relay_chain: "rococo-local".into(), // You MUST set this to the correct network!
             para_id: para_id.into(),
         },
     )
-    .with_name(&format!("Frontier Container {}", para_id))
-    .with_id(&format!("frontier_container_{}", para_id))
+    .with_name(&format!("Spectre Finance {}", para_id))
+    .with_id(&format!("spectre_finance_{}", para_id))
     .with_chain_type(ChainType::Local)
     .with_genesis_config(testnet_genesis(
         default_funded_accounts.clone(),
@@ -193,8 +187,21 @@ fn testnet_genesis(
         polkadot_xcm: PolkadotXcmConfig::default(),
         tx_pause: Default::default(),
         spectre: spectre_runtime::SpectreConfig {
-            relayer: Some(root_key)
-        }
+            relayer: Some(root_key),
+        },
+        assets: spectre_runtime::AssetsConfig {
+            assets: vec![/*(1,root_key, true,0),(2,root_key,true,0),(3,root_key,true,0),(4,root_key,true,0),(5,root_key,true,0),(6,root_key,true,0)*/],
+            metadata: vec![/*
+                (1,b"SpectreDot".to_vec(),b"sfDOT".to_vec(),12),
+                (2,b"SpectreUsdt".to_vec(),b"sfUSDT".to_vec(),12),
+                (3,b"SpectreUsdc".to_vec(),b"sfUSDC".to_vec(),12),
+                (4,b"SpectreEth".to_vec(),b"sfETH".to_vec(),12),
+                (5,b"SpectreSol".to_vec(),b"sfSOL".to_vec(),12),
+                (6,b"SpectreBtc".to_vec(),b"sfBTC".to_vec(),12),
+                */
+            ],
+            accounts: vec![],
+        },
     };
 
     serde_json::to_value(g).unwrap()

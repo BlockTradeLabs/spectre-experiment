@@ -1,9 +1,6 @@
-
-
 #[allow(deprecated)]
 use {
     crate::client::TemplateRuntimeExecutor,
-    spectre_runtime::{opaque::Block, RuntimeApi},
     cumulus_client_cli::CollatorOptions,
     cumulus_client_consensus_common::ParachainBlockImport as TParachainBlockImport,
     cumulus_client_parachain_inherent::{MockValidationDataInherentDataProvider, MockXcmConfig},
@@ -22,6 +19,7 @@ use {
     sp_blockchain::HeaderBackend,
     sp_consensus_slots::{Slot, SlotDuration},
     sp_core::{Pair, H256},
+    spectre_runtime::{opaque::Block, RuntimeApi},
     std::{
         collections::BTreeMap,
         sync::{Arc, Mutex},

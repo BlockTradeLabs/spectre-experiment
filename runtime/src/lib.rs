@@ -22,6 +22,7 @@
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
+use sp_runtime::traits::AccountIdLookup;
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
 
@@ -34,6 +35,11 @@ pub mod xcm_config;
 
 use {
     crate::precompiles::TemplatePrecompiles,
+    crate::xcm_config::{
+        AssetId, ForeignAssetsApprovalDeposit, ForeignAssetsAssetAccountDeposit,
+        ForeignAssetsAssetsStringLimit, ForeignAssetsMetadataDepositBase,
+        ForeignAssetsMetadataDepositPerByte,
+    },
     cumulus_pallet_parachain_system::RelayNumberStrictlyIncreases,
     cumulus_primitives_core::AggregateMessageOrigin,
     dp_impl_tanssi_pallets_config::impl_tanssi_pallets_config,
@@ -95,11 +101,12 @@ pub use {
     sp_consensus_aura::sr25519::AuthorityId as AuraId,
     sp_runtime::{MultiAddress, Perbill, Permill},
 };
-use pallet_spectre;
-use staging_xcm::latest::prelude::*;
-// use orml_tokens;
-// use orml_xtokens;
+
+use pallet_scheduler;
+// Orml
 // use orml_traits;
+
+use pallet_spectre;
 
 // Polkadot imports
 use polkadot_runtime_common::BlockHashCount;
@@ -322,10 +329,10 @@ impl_opaque_keys! {
 
 #[sp_version::runtime_version]
 pub const VERSION: RuntimeVersion = RuntimeVersion {
-    spec_name: create_runtime_str!("frontier-template"),
-    impl_name: create_runtime_str!("frontier-template"),
+    spec_name: create_runtime_str!("Spectre Finance"),
+    impl_name: create_runtime_str!("Spectre Finance"),
     authoring_version: 1,
-    spec_version: 600,
+    spec_version: 601,
     impl_version: 0,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 1,
@@ -428,7 +435,7 @@ impl frame_system::Config for Runtime {
     /// The aggregated dispatch type that is available for extrinsics.
     type RuntimeCall = RuntimeCall;
     /// The lookup mechanism to get account ID from whatever is passed in dispatchers.
-    type Lookup = IdentityLookup<AccountId>;
+    type Lookup = AccountIdLookup<Self::AccountId,()>;
     /// The index type for storing how many extrinsics an account has signed.
     type Nonce = Index;
     /// The index type for blocks.
@@ -551,7 +558,7 @@ impl pallet_async_backing::Config for Runtime {
     type AllowMultipleBlocksPerSlot = ConstBool<false>;
     type GetAndVerifySlot =
         pallet_async_backing::ParaSlot<RELAY_CHAIN_SLOT_DURATION_MILLIS, ParaSlotProvider>;
-    type ExpectedBlockTime = ConstU64<5000>;
+    type ExpectedBlockTime = ConstU64<100>;
 }
 
 impl parachain_info::Config for Runtime {}
@@ -857,32 +864,44 @@ impl pallet_multisig::Config for Runtime {
     type WeightInfo = pallet_multisig::weights::SubstrateWeight<Runtime>;
 }
 
-// ORML pallets
+parameter_types! {
+    pub const DefaultAsset: AssetId = 1;
+    pub const DefaultBalance: Balance = 0;
+}
 
-// orml_traits::parameter_type_with_key! {
-// 	pub MinXcmReserveFee: |location: orml_traits::MultiLocation| -> Option<u128> {
-// 		#[allow(clippy::match_ref_pats)] // false positive
-// 		match (location.parents, location.first_interior()) {
-// 			(1, Some(Parachain(parachains::statemine::ID))) => Some(4_000_000_000),
-// 			_ => None,
-// 		}
-// 	};
-// }
-
-// orml_traits::parameter_type_with_key! {
-// 	pub ParachainMinFee: |_location: MultiLocation| -> Option<u128> {
-// 		None
-// 	};
-// }
-
-
-// Local pallets
 impl pallet_spectre::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
     type NativeBalance = Balances;
     type CapitalAllocator = ();
-    
     type TradeExecutionVerifier = ();
+    type InvestorPoolOwnership = ConstU8<30>;
+    type TraderPoolOwnership = ConstU8<60>;
+    type DefaultAsset = DefaultAsset;
+    type DefaultBalance = DefaultBalance;
+    type TotalSuppotedAssets = ConstU8<4>;
+}
+
+impl pallet_assets::Config for Runtime {
+    type RuntimeEvent = RuntimeEvent;
+    type Balance = Balance;
+    type AssetId = AssetId;
+    type AssetIdParameter = AssetId;
+    type Currency = Balances;
+    type CreateOrigin = frame_support::traits::NeverEnsureOrigin<AccountId>;
+    type ForceOrigin = EnsureRoot<AccountId>;
+    type AssetDeposit = ForeignAssetsApprovalDeposit;
+    type MetadataDepositBase = ForeignAssetsMetadataDepositBase;
+    type MetadataDepositPerByte = ForeignAssetsMetadataDepositPerByte;
+    type ApprovalDeposit = ForeignAssetsApprovalDeposit;
+    type StringLimit = ForeignAssetsAssetsStringLimit;
+    type Freezer = ();
+    type Extra = ();
+    type WeightInfo = pallet_assets::weights::SubstrateWeight<Runtime>;
+    type CallbackHandle = ();
+    type AssetAccountDeposit = ForeignAssetsAssetAccountDeposit;
+    type RemoveItemsLimit = frame_support::traits::ConstU32<1000>;
+    #[cfg(feature = "runtime-benchmarks")]
+    type BenchmarkHelper = ForeignAssetBenchmarkHelper;
 }
 
 impl_tanssi_pallets_config!(Runtime);
@@ -910,32 +929,34 @@ construct_runtime!(
         Multisig: pallet_multisig = 16,
 
         // ContainerChain
-        AuthoritiesNoting: pallet_cc_authorities_noting = 30,
-        AuthorInherent: pallet_author_inherent = 31,
+        AuthoritiesNoting: pallet_cc_authorities_noting = 50,
+        AuthorInherent: pallet_author_inherent = 51,
 
         // Frontier
-        Ethereum: pallet_ethereum = 40,
-        EVM: pallet_evm = 41,
-        EVMChainId: pallet_evm_chain_id = 42,
-        BaseFee: pallet_base_fee = 44,
-        HotfixSufficients: pallet_hotfix_sufficients = 45,
-        TransactionPayment: pallet_transaction_payment = 46,
+        Ethereum: pallet_ethereum = 60,
+        EVM: pallet_evm = 61,
+        EVMChainId: pallet_evm_chain_id = 62,
+        BaseFee: pallet_base_fee = 64,
+        HotfixSufficients: pallet_hotfix_sufficients = 65,
+        TransactionPayment: pallet_transaction_payment = 66,
 
         // XCM
-        XcmpQueue: cumulus_pallet_xcmp_queue::{Pallet, Storage, Event<T>} = 50,
-        CumulusXcm: cumulus_pallet_xcm::{Pallet, Event<T>, Origin} = 51,
-        DmpQueue: cumulus_pallet_dmp_queue::{Pallet, Call, Storage, Event<T>} = 52,
-        PolkadotXcm: pallet_xcm::{Pallet, Call, Storage, Event<T>, Origin, Config<T>} = 53,
-        MessageQueue: pallet_message_queue::{Pallet, Call, Storage, Event<T>} = 54,
-        ForeignAssets: pallet_assets::{Pallet, Call, Storage, Event<T>}  = 55,
-        // ForeignAssetsCreator: pallet_foreign_asset_creator::{Pallet, Call, Storage, Event<T>} = 56,
-        // AssetRate: pallet_asset_rate::{Pallet, Call, Storage, Event<T>} = 57,
-        XcmExecutorUtils: pallet_xcm_executor_utils::{Pallet, Call, Storage, Event<T>} = 58,
+        XcmpQueue: cumulus_pallet_xcmp_queue::{Pallet, Storage, Event<T>} = 70,
+        CumulusXcm: cumulus_pallet_xcm::{Pallet, Event<T>, Origin} = 71,
+        DmpQueue: cumulus_pallet_dmp_queue::{Pallet, Call, Storage, Event<T>} = 72,
+        PolkadotXcm: pallet_xcm::{Pallet, Call, Storage, Event<T>, Origin, Config<T>} = 73,
+        MessageQueue: pallet_message_queue::{Pallet, Call, Storage, Event<T>} = 74,
+        ForeignAssets: pallet_assets::<Instance1>::{Pallet, Call, Storage, Event<T>} = 75,
+        // ForeignAssetsCreator: pallet_foreign_asset_creator::{Pallet, Call, Storage, Event<T>} = 76,
+        AssetRate: pallet_asset_rate::{Pallet, Call, Storage, Event<T>} = 77,
+        XcmExecutorUtils: pallet_xcm_executor_utils::{Pallet, Call, Storage, Event<T>} = 78,
 
-        RootTesting: pallet_root_testing = 70,
-        AsyncBacking: pallet_async_backing::{Pallet, Storage} = 71,
+        RootTesting: pallet_root_testing = 100,
+        AsyncBacking: pallet_async_backing::{Pallet, Storage} = 110,
 
-        Spectre: pallet_spectre = 80,
+        Assets: pallet_assets,
+
+        Spectre: pallet_spectre
     }
 );
 
@@ -956,7 +977,7 @@ mod benches {
         [pallet_xcm, PalletXcmExtrinsicsBenchmark::<Runtime>]
         [pallet_xcm_benchmarks::generic, pallet_xcm_benchmarks::generic::Pallet::<Runtime>]
         [pallet_assets, ForeignAssets]
-        // [pallet_asset_rate, AssetRate]
+        [pallet_asset_rate, AssetRate]
         // [pallet_foreign_asset_creator, ForeignAssetsCreator]
     );
 }

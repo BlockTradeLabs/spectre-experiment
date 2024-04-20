@@ -1,4 +1,3 @@
-
 use {
     clap::Parser,
     node_common::service::Sealing,

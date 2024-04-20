@@ -24,7 +24,6 @@
 pub use sc_rpc::{DenyUnsafe, SubscriptionTaskExecutor};
 
 use {
-    spectre_runtime::{opaque::Block, AccountId, Hash, Index},
     cumulus_client_parachain_inherent::ParachainInherentData,
     cumulus_primitives_core::{ParaId, PersistedValidationData},
     cumulus_test_relay_sproof_builder::RelayStateSproofBuilder,
@@ -53,6 +52,7 @@ use {
     sp_consensus_aura::SlotDuration,
     sp_core::H256,
     sp_runtime::traits::{BlakeTwo256, Block as BlockT, Header as HeaderT},
+    spectre_runtime::{opaque::Block, AccountId, Hash, Index},
     std::{sync::Arc, time::Duration},
 };
 pub struct DefaultEthConfig<C, BE>(std::marker::PhantomData<(C, BE)>);

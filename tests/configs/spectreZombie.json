@@ -5,7 +5,7 @@
     },
     "relaychain": {
         "chain": "rococo-local",
-        "default_command": "tmp/polkadot",
+        "default_command": "tests/tmp/polkadot",
         "default_args": ["--no-hardware-benchmarks", "-lparachain=debug", "--database=paritydb", "--no-beefy"],
         "nodes": [
             {
@@ -18,30 +18,30 @@
     "parachains": [
         {
             "id": 1000,
-            "chain_spec_path": "specs/tanssi-1000.json",
+            "chain_spec_path": "tests/specs/tanssi-1000.json",
             "COMMENT": "Important: these collators will not be injected to pallet-invulnerables because zombienet does not support that. When changing the collators list, make sure to update `scripts/build-spec.sh`",
             "collators": [
                 {
                     "name": "Collator1000-01",
                     "ws_port": "9948",
-                    "command": "tmp/tanssi-node",
+                    "command": "tests/tmp/tanssi-node",
                     "args": ["--no-hardware-benchmarks", "--database=paritydb", "--wasmtime-precompiled=wasm"]
                 },
                 {
                     "name": "Collator2001-01",
-                    "command": "tmp/tanssi-node",
+                    "command": "tests/tmp/tanssi-node",
                     "args": ["--no-hardware-benchmarks", "--database=paritydb", "--wasmtime-precompiled=wasm"]
                 }
             ]
         },
         {
             "id": 2001,
-            "chain_spec_path": "specs/spectre-node.json",
+            "chain_spec_path": "tests/specs/spectre-node.json",
             "collators": [
                 {
                     "name": "Spectre",
                     "validator": false,
-                    "command": "../target/release/spectre-node",
+                    "command": "target/release/spectre-node",
                     "args": ["--no-hardware-benchmarks", "--database=paritydb", "--wasmtime-precompiled=wasm"],
                     "ws_port": 9950,
                     "p2p_port": 33050
