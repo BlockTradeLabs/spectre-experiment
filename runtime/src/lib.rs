@@ -28,6 +28,8 @@ use sp_version::NativeVersion;
 
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
+use staging_xcm_executor::XcmExecutor;
+use xcm_config::XcmConfig;
 
 pub mod migrations;
 mod precompiles;
@@ -102,16 +104,36 @@ pub use {
     sp_runtime::{MultiAddress, Perbill, Permill},
 };
 
-use frame_support::traits::{EnsureOriginWithArg, EqualPrivilegeOnly};
+use frame_support::traits::{EnsureOriginWithArg, EqualPrivilegeOnly, Everything};
 use frame_support::pallet_prelude::EnsureOrigin;
 use frame_system::EnsureSignedBy;
+use sp_runtime::traits::Convert;
+use orml_traits::parameter_type_with_key;
+use cumulus_primitives_core::ParaId;
+use staging_xcm::opaque::latest::{
+    MultiLocation,
+    InteriorMultiLocation,
+    NetworkId,
+    Junctions::*,
+    Junction::*,
+    MultiAsset
+};
 
+use staging_xcm::latest::prelude::*;
+use staging_xcm_builder::{
+    AccountKey20Aliases, AllowKnownQueryResponses, AllowSubscriptionsFrom,
+    AllowTopLevelPaidExecutionFrom, AllowUnpaidExecutionFrom, EnsureXcmOrigin, FixedWeightBounds,
+    ParentIsPreset, RelayChainAsNative, SiblingParachainAsNative, SiblingParachainConvertsVia,
+    SovereignSignedViaLocation, TakeRevenue,
+    TakeWeightCredit, UsingComponents
+};
 use pallet_scheduler;
 // Orml
-// use orml_traits;
-
+use orml_traits::{self, location::AbsoluteReserveProvider};
 use pallet_spectre;
 use orml_asset_registry;
+use orml_xtokens;
+
 // Polkadot imports
 use polkadot_runtime_common::BlockHashCount;
 
@@ -875,6 +897,142 @@ parameter_types! {
 
 // ========================================================================
 
+// #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+// pub enum CurrencyId {
+// 	/// Relay chain token.
+// 	sfDOT,
+// 	/// Parachain AssetHub token.
+// 	sfUSDT,
+// 	/// Parachain AssetHub token.
+// 	sfUSDC,
+// }
+pub const DOT_ASSET_ID: AssetId = 0;
+pub const USDT_ASSET_ID: AssetId = 1;
+pub const USDC_ASSET_ID: AssetId = 2;
+
+pub struct CurrencyIdConvert;
+
+impl Convert<AssetId, Option<MultiLocation>> for CurrencyIdConvert {
+    fn convert(id: AssetId) -> Option<MultiLocation> {
+        match id {
+            DOT_ASSET_ID => Some(MultiLocation::new(
+                1,
+                X2(
+                    Parachain(ParachainInfo::get().into()),
+                    GeneralIndex(id.into()),
+                ),
+            )),
+            _ => AssetRegistry::multilocation(&id).unwrap_or_default(),
+        }
+    }
+}
+
+impl Convert<MultiLocation, Option<AssetId>> for CurrencyIdConvert {
+    fn convert(location: MultiLocation) -> Option<AssetId> {
+        match location {
+            MultiLocation {
+                parents,
+                interior: X2(Parachain(id), GeneralIndex(index)),
+            } if parents == 1
+                && ParaId::from(id) == ParachainInfo::get()
+                && (index as u32) == DOT_ASSET_ID =>
+            {
+                // Handling native asset for this parachain
+                Some(DOT_ASSET_ID)
+            }
+            // handle reanchor canonical location: https://github.com/paritytech/polkadot/pull/4470
+            MultiLocation {
+                parents: 0,
+                interior: X1(GeneralIndex(index)),
+            } if (index as u32) == DOT_ASSET_ID => Some(DOT_ASSET_ID),
+            // delegate to asset-registry
+            _ => AssetRegistry::location_to_asset_id(location),
+        }
+    }
+}
+
+impl Convert<MultiAsset, Option<AssetId>> for CurrencyIdConvert {
+    fn convert(asset: MultiAsset) -> Option<AssetId> {
+        if let MultiAsset {
+            id: Concrete(location),
+            ..
+        } = asset
+        {
+            Self::convert(location)
+        } else {
+            None
+        }
+    }
+}
+
+pub struct AccountIdToMultiLocation;
+impl Convert<AccountId, MultiLocation> for AccountIdToMultiLocation {
+    fn convert(account: AccountId) -> MultiLocation {
+        X1(AccountKey20 {
+            network: None,
+            key: account.into(),
+        })
+        .into()
+    }
+}
+
+parameter_types! {
+    pub SelfLocation: MultiLocation = MultiLocation::new(1, X1(Parachain(ParachainInfo::get().into())));
+}
+
+parameter_type_with_key! {
+    pub ParachainMinFee: |_location: MultiLocation| -> Option<u128> {
+          None
+    };
+}
+
+parameter_types! {
+    /// The amount of weight an XCM operation takes. This is a safe overestimate.
+    pub const BaseXcmWeight: Weight = Weight::from_parts(100_000_000, 0);
+    pub const MaxInstructions: u32 = 100;
+    pub const MaxAssetsForTransfer: usize = 2;
+}
+
+parameter_types! {
+    pub const RelayNetwork: NetworkId = NetworkId::Kusama;
+    pub const RelayLocation: MultiLocation = MultiLocation::parent();
+    pub RelayChainOrigin: RuntimeOrigin = cumulus_pallet_xcm::Origin::Relay.into();
+    pub Ancestry: MultiLocation = Parachain(ParachainInfo::parachain_id().into()).into();
+    pub UniversalLocation: InteriorMultiLocation = X2(GlobalConsensus(RelayNetwork::get()), Parachain(ParachainInfo::parachain_id().into()));
+}
+
+
+impl orml_xtokens::Config for Runtime {
+    type RuntimeEvent = RuntimeEvent;
+
+    type Balance = Balance;
+
+    type CurrencyId = AssetId;
+
+    type CurrencyIdConvert = CurrencyIdConvert;
+
+    type AccountIdToMultiLocation = AccountIdToMultiLocation;
+
+    type SelfLocation = SelfLocation;
+
+    type MinXcmFee = ParachainMinFee;
+
+    type XcmExecutor = XcmExecutor<XcmConfig>;
+
+    type MultiLocationsFilter = Everything;
+
+    type Weigher = FixedWeightBounds<BaseXcmWeight, RuntimeCall, MaxInstructions>;
+
+    type BaseXcmWeight = BaseXcmWeight;
+
+    type UniversalLocation = UniversalLocation;
+
+    type MaxAssetsForTransfer = MaxAssetsForTransfer;
+
+    type ReserveProvider = AbsoluteReserveProvider;
+}
+
+
 parameter_types! {
 	pub MaximumSchedulerWeight: Weight = Perbill::from_percent(80) *
 		BlockWeights::default().max_block;
@@ -1031,6 +1189,8 @@ construct_runtime!(
         Scheduler: pallet_scheduler,
 
         AssetRegistry: orml_asset_registry,
+
+        Xtokens: orml_xtokens,
 
         Assets: pallet_assets,
 
