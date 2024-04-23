@@ -41,11 +41,16 @@ pallet-spectre = {path = "pallets/spectre", default-features = false}
 
 # ORML
 
-orml-xtokens = { version = "0.8.0",default-features = false }
-orml-tokens =  { version = "0.8.0",default-features = false }
-orml-traits =  { version = "0.8.0",default-features = false }
-orml-asset-registry = { version = "0.8.0", default-features = false}
+orml-xtokens = { path = "open-runtime-module-library/xtokens", default-features = false }
+orml-tokens = { path = "open-runtime-module-library/tokens", default-features = false }
+orml-traits = { path = "open-runtime-module-library/traits", default-features = false }
+orml-asset-registry = { path = "open-runtime-module-library/asset-registry", default-features = false }
 
+xcm = { git = "https://github.com/moondance-labs/polkadot-sdk", branch = "tanssi-polkadot-v1.6.0", default-features = false, package = "staging-xcm"}
+xcm-builder = { git = "https://github.com/moondance-labs/polkadot-sdk", branch = "tanssi-polkadot-v1.6.0", default-features = false, package = "staging-xcm-builder"}
+xcm-executor = { git = "https://github.com/moondance-labs/polkadot-sdk", branch = "tanssi-polkadot-v1.6.0", default-features = false, package = "staging-xcm-executor"}
+xcm-simulator = { git = "https://github.com/moondance-labs/polkadot-sdk", branch = "tanssi-polkadot-v1.6.0", default-features = false }
+pallet-elections-phragmen = { git = "https://github.com/moondance-labs/polkadot-sdk", branch = "tanssi-polkadot-v1.6.0", default-features = false }
 #Tanssi Node
 manual-xcm-rpc = { git = "https://github.com/moondance-labs/tanssi", branch = "master" }
 node-common = { git = "https://github.com/moondance-labs/tanssi", branch = "master" }
@@ -122,7 +127,7 @@ sp-consensus-slots = { git = "https://github.com/moondance-labs/polkadot-sdk", b
 sp-core = { git = "https://github.com/moondance-labs/polkadot-sdk.git", branch = "tanssi-polkadot-v1.6.0", version = "21.0.0", default-features = false }
 sp-debug-derive = { git = "https://github.com/moondance-labs/polkadot-sdk.git", branch = "tanssi-polkadot-v1.6.0", default-features = false }
 sp-inherents = { git = "https://github.com/moondance-labs/polkadot-sdk", branch = "tanssi-polkadot-v1.6.0", default-features = false }
-sp-io = { git = "https://github.com/moondance-labs/polkadot-sdk.git", branch = "tanssi-polkadot-v1.6.0", version = "23.0.0", default-features = false }
+sp-io = { git = "https://github.com/moondance-labs/polkadot-sdk", branch = "tanssi-polkadot-v1.6.0", default-features = false }
 sp-keyring = { git = "https://github.com/moondance-labs/polkadot-sdk.git", branch = "tanssi-polkadot-v1.6.0", version = "24.0.0", default-features = false }
 sp-offchain = { git = "https://github.com/moondance-labs/polkadot-sdk", branch = "tanssi-polkadot-v1.6.0", default-features = false }
 sp-runtime = { git = "https://github.com/moondance-labs/polkadot-sdk.git", branch = "tanssi-polkadot-v1.6.0", version = "24.0.0", default-features = false }
@@ -290,5 +295,4 @@ tokio = { version = "1.32.0", default-features = false }
 tracing = { version = "0.1.37", default-features = false }
 tracing-subscriber = { version = "0.2.25", default-features = false }
 url = "2.2.2"
-
 

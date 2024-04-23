@@ -16,10 +16,9 @@ frame-system = { workspace = true }
 sp-std = { workspace = true }
 sp-arithmetic = { workspace = true }
 sp-trie = { workspace = true }
+sp-io = { workspace = true}
 sp-core = { workspace = true }
-pallet-assets = { workspace = true }
 orml-xtokens ={ workspace=true }
-orml-tokens = { workspace = true}
 orml-asset-registry = {workspace = true}
 
 [features]
@@ -30,12 +29,11 @@ std = [
     "frame-support/std",
     "frame-system/std",
     "sp-std/std",
+    "sp-io/std",
     "sp-arithmetic/std",
     "sp-trie/std",
     "sp-core/std",
-    "pallet-assets/std",
     "orml-xtokens/std",
-    "orml-tokens/std",
     "orml-asset-registry/std"
 ]
 [lints]

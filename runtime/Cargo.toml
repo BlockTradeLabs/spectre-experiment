@@ -23,6 +23,9 @@ smallvec = { workspace = true }
 
 #Orml
 orml-traits = {workspace = true}
+orml-xtokens ={ workspace=true }
+# orml-tokens = { workspace = true}
+orml-asset-registry = {workspace = true}
 
 # Local
 ccp-xcm = { workspace = true }
@@ -223,7 +226,10 @@ std = [
 	"staging-xcm/std",
 	"xcm-primitives/std",
 	"pallet-spectre/std",
-	"pallet-scheduler/std"
+	"pallet-scheduler/std",
+	"orml-traits/std",
+	"orml-xtokens/std",
+	"orml-asset-registry/std"
 ]
 
 # Allow to print logs details (no wasm:stripped)

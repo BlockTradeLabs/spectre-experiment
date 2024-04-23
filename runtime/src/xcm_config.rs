@@ -323,11 +323,11 @@ impl AccountIdAssetIdConversion<AccountId, AssetId> for Runtime {
     /// and by taking the lowest 2 bytes as the assetId
     fn account_to_asset_id(account: AccountId) -> Option<(Vec<u8>, AssetId)> {
         let h160_account: H160 = account.into();
-        let mut data = [0u8; 2];
+        let mut data = [0u8; 4];
         let (prefix_part, id_part) = h160_account.as_fixed_bytes().split_at(18);
         if prefix_part == FOREIGN_ASSET_PRECOMPILE_ADDRESS_PREFIX {
             data.copy_from_slice(id_part);
-            let asset_id: AssetId = u16::from_be_bytes(data);
+            let asset_id: AssetId = u32::from_be_bytes(data);
             Some((prefix_part.to_vec(), asset_id))
         } else {
             None
@@ -343,7 +343,7 @@ impl AccountIdAssetIdConversion<AccountId, AssetId> for Runtime {
     }
 }
 
-pub type AssetId = u16;
+pub type AssetId = u32;
 pub type ForeignAssetsInstance = pallet_assets::Instance1;
 impl pallet_assets::Config<ForeignAssetsInstance> for Runtime {
     type RuntimeEvent = RuntimeEvent;

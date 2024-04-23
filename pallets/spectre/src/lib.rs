@@ -40,7 +40,6 @@ use sp_std::vec::Vec;
 use sp_trie::{read_trie_value, verify_trie_proof, LayoutV1, MemoryDB, StorageProof, TrieDB};
 use frame_support::sp_runtime::traits::StaticLookup;
 use orml_xtokens;
-use orml_tokens;
 use orml_asset_registry;
 
 use util::*;
@@ -127,20 +126,23 @@ pub mod pallet {
     #[pallet::genesis_config]
     pub struct GenesisConfig<T: Config> {
         pub relayer: Option<AccountIdFor<T>>,
-        pub supported_assets: Vec<T::AssetId>,
-        pub initial_capital: u128,
-        pub initial_blocktime_pool: BlockNumberFor<T>,
-        pub fee: u8,
-        pub pool_account_id: AccountIdFor<T>
+        // pub supported_assets: Vec<T::AssetId>,
+        // pub initial_capital: u128,
+        // pub initial_blocktime_pool: BlockNumberFor<T>,
+        // pub fee: u8,
+        // pub pool_account_id: AccountIdFor<T>
     }
 
-    // impl<T: Config> Default for GenesisConfig<T> {
-    //     fn default() -> Self {
-    //         Self {
-    //             relayer: None
-    //         }
-    //     }
-    // }
+    impl<T: Config> Default for GenesisConfig<T> {
+        fn default() -> Self {
+            Self {
+                relayer: None,
+                // supported_assets: vec![],
+                // initial_capital: 0,
+
+            }
+        }
+    }
 
     #[pallet::genesis_build]
     impl<T: Config> BuildGenesisConfig for GenesisConfig<T> {
@@ -151,20 +153,20 @@ pub mod pallet {
                     .expect(" Setup spectre relayer account"),
             
             );
-            self.supported_assets.iter().for_each(|asset|{
-                let value = InvestorCapitalPool {
-                    asset_name: asset.clone(),
-                    total_capital: self.initial_capital, 
-                    remaining_capital: self.initial_capital, 
-                    total_allocated_capital: self.initial_capital, 
-                    unrealized_balance: self.initial_capital, 
-                    created_at: self.initial_blocktime_pool, 
-                    fee: self.fee, 
-                    account_id: self.pool_account_id.clone()
-                };
+            // self.supported_assets.iter().for_each(|asset|{
+            //     let value = InvestorCapitalPool {
+            //         asset_name: asset.clone(),
+            //         total_capital: self.initial_capital, 
+            //         remaining_capital: self.initial_capital, 
+            //         total_allocated_capital: self.initial_capital, 
+            //         unrealized_balance: self.initial_capital, 
+            //         created_at: self.initial_blocktime_pool, 
+            //         fee: self.fee, 
+            //         account_id: self.pool_account_id.clone()
+            //     };
 
-                CapitalPool::<T>::insert(asset,value);
-            })
+            //     CapitalPool::<T>::insert(asset,value);
+            // })
             
         }
     }

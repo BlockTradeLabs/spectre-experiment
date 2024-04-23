@@ -5,6 +5,7 @@ use frame_support::DefaultNoBound;
 use frame_system::pallet_prelude::*;
 use sp_std::vec;
 use sp_std::vec::Vec;
+use sp_io::hashing::blake2_128;
 
 use super::pallet::*;
 
@@ -12,14 +13,12 @@ pub use utils::*;
 
 pub mod utils {
 
-    use std::net::UdpSocket;
-
     extern crate alloc;
 
     use alloc::collections::BTreeMap;
     use frame_support::sp_runtime::{traits::TrailingZeroInput, MultiAddress};
     use sp_arithmetic::Permill;
-    use sp_core::{blake2_128, ConstU8};
+    // use sp_core::{blake2_128, ConstU8};
     use parity_scale_codec::{Encode,Decode};
 
     use super::*;
@@ -68,21 +67,16 @@ pub mod utils {
     impl<T: Config> InvestorProfile<T> {
     
 
-       pub fn add_capital(&mut self,asset_id:T::AssetId, amount:u128)-> DispatchResult{
-            // check if the capital under the asset is alreayd provided
-            // if let Some(existing_capital) = self.deposited_capital.get(asset_id){
-            //     let updated_capital = existing_capital + amount;
-            //     self.deposited_capital.try_insert(asset_id,updated_capital).map_err(|_|Error::<T>::FailedToAddCapital)?
-            // }else{
-            //     self.deposited_capital.try_insert(asset_id,amount).map_err(|_|Error::<T>::FailedToAddCapital)?
-            // }
-            // if let Some(existing_capital) = self.deposited_capital.get(&asset_id){
-            //     let updated_capital = existing_capital.clone() + amount;
-                
-            // }else{
+       pub fn add_capital(&mut self,asset_id:T::AssetId, amount:u128){
+            // check if the capital under the asset has been already provided
+            self.deposited_capital.clone().iter().for_each(|(inner_asset_id,mut balance)|{
+                if &asset_id == inner_asset_id {
+                    balance += amount
+                }else{
+                    self.deposited_capital.push((asset_id.clone(),amount))
+                }
+            });
 
-            // }
-            Ok(())
        }
     }
 

@@ -102,12 +102,16 @@ pub use {
     sp_runtime::{MultiAddress, Perbill, Permill},
 };
 
+use frame_support::traits::{EnsureOriginWithArg, EqualPrivilegeOnly};
+use frame_support::pallet_prelude::EnsureOrigin;
+use frame_system::EnsureSignedBy;
+
 use pallet_scheduler;
 // Orml
 // use orml_traits;
 
 use pallet_spectre;
-
+use orml_asset_registry;
 // Polkadot imports
 use polkadot_runtime_common::BlockHashCount;
 
@@ -435,7 +439,7 @@ impl frame_system::Config for Runtime {
     /// The aggregated dispatch type that is available for extrinsics.
     type RuntimeCall = RuntimeCall;
     /// The lookup mechanism to get account ID from whatever is passed in dispatchers.
-    type Lookup = AccountIdLookup<Self::AccountId,()>;
+    type Lookup = IdentityLookup<Self::AccountId>;
     /// The index type for storing how many extrinsics an account has signed.
     type Nonce = Index;
     /// The index type for blocks.
@@ -869,6 +873,75 @@ parameter_types! {
     pub const DefaultBalance: Balance = 0;
 }
 
+// ========================================================================
+
+parameter_types! {
+	pub MaximumSchedulerWeight: Weight = Perbill::from_percent(80) *
+		BlockWeights::default().max_block;
+}
+
+impl pallet_scheduler::Config for Runtime {
+    type RuntimeEvent = RuntimeEvent;
+
+    type RuntimeOrigin = RuntimeOrigin;
+
+    type PalletsOrigin = OriginCaller;
+
+    type RuntimeCall = RuntimeCall;
+
+    type MaximumWeight = MaximumSchedulerWeight;
+
+    type ScheduleOrigin = EnsureRoot<Self::AccountId>;
+
+    type OriginPrivilegeCmp = EqualPrivilegeOnly;
+
+    type MaxScheduledPerBlock = ConstU32<10000>;
+
+    type WeightInfo = ();
+
+    type Preimages = ();
+}
+
+pub struct AssetAuthority;
+impl EnsureOriginWithArg<RuntimeOrigin, Option<u32>> for AssetAuthority {
+    type Success = ();
+
+    fn try_origin(
+        origin: RuntimeOrigin,
+        _asset_id: &Option<u32>,
+    ) -> Result<Self::Success, RuntimeOrigin> {
+        <EnsureRoot<AccountId> as EnsureOrigin<RuntimeOrigin>>::try_origin(origin)
+    }
+
+    #[cfg(feature = "runtime-benchmarks")]
+    fn try_successful_origin(_asset_id: &Option<u32>) -> Result<RuntimeOrigin, ()> {
+        unimplemented!()
+    }
+}
+#[derive(Eq, Debug, Clone,PartialEq, TypeInfo)]
+pub struct CustomMetadata {
+	pub fee_per_second: u128,
+}
+
+
+impl orml_asset_registry::Config for Runtime {
+    type RuntimeEvent = RuntimeEvent;
+
+    type CustomMetadata = ();
+
+    type AssetId = AssetId;
+
+    type AuthorityOrigin = AssetAuthority;
+
+    type AssetProcessor = orml_asset_registry::SequentialId<Runtime>;
+
+    type Balance = Balance;
+
+    type StringLimit = ConstU32<30>;
+
+    type WeightInfo = ();
+}
+
 impl pallet_spectre::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
     type NativeBalance = Balances;
@@ -878,7 +951,7 @@ impl pallet_spectre::Config for Runtime {
     type TraderPoolOwnership = ConstU8<60>;
     type DefaultAsset = DefaultAsset;
     type DefaultBalance = DefaultBalance;
-    type TotalSuppotedAssets = ConstU8<4>;
+    type TotalSupportedAssets = ConstU8<4>;
 }
 
 impl pallet_assets::Config for Runtime {
@@ -953,6 +1026,11 @@ construct_runtime!(
 
         RootTesting: pallet_root_testing = 100,
         AsyncBacking: pallet_async_backing::{Pallet, Storage} = 110,
+
+        // spectre pallets associated pallets
+        Scheduler: pallet_scheduler,
+
+        AssetRegistry: orml_asset_registry,
 
         Assets: pallet_assets,
 
