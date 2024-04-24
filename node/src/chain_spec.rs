@@ -188,20 +188,7 @@ fn testnet_genesis(
         tx_pause: Default::default(),
         spectre: spectre_runtime::SpectreConfig {
             relayer: Some(root_key),
-        },
-        assets: spectre_runtime::AssetsConfig {
-            assets: vec![/*(1,root_key, true,0),(2,root_key,true,0),(3,root_key,true,0),(4,root_key,true,0),(5,root_key,true,0),(6,root_key,true,0)*/],
-            metadata: vec![/*
-                (1,b"SpectreDot".to_vec(),b"sfDOT".to_vec(),12),
-                (2,b"SpectreUsdt".to_vec(),b"sfUSDT".to_vec(),12),
-                (3,b"SpectreUsdc".to_vec(),b"sfUSDC".to_vec(),12),
-                (4,b"SpectreEth".to_vec(),b"sfETH".to_vec(),12),
-                (5,b"SpectreSol".to_vec(),b"sfSOL".to_vec(),12),
-                (6,b"SpectreBtc".to_vec(),b"sfBTC".to_vec(),12),
-                */
-            ],
-            accounts: vec![],
-        },
+        }
     };
 
     serde_json::to_value(g).unwrap()

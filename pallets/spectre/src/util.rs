@@ -1,11 +1,11 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use frame_support::pallet_prelude::*;
-use frame_support::DefaultNoBound;
-use frame_system::pallet_prelude::*;
-use sp_std::vec;
-use sp_std::vec::Vec;
-use sp_io::hashing::blake2_128;
+use {
+    frame_support::{pallet_prelude::*, DefaultNoBound},
+    frame_system::pallet_prelude::*,
+    sp_io::hashing::blake2_128,
+    sp_std::{vec, vec::Vec},
+};
 
 use super::pallet::*;
 
@@ -15,24 +15,29 @@ pub mod utils {
 
     extern crate alloc;
 
-    use alloc::collections::BTreeMap;
-    use frame_support::sp_runtime::{traits::TrailingZeroInput, MultiAddress};
-    use sp_arithmetic::Permill;
+    use {
+        alloc::collections::BTreeMap,
+        frame_support::sp_runtime::{traits::TrailingZeroInput, MultiAddress},
+        sp_arithmetic::Permill,
+    };
     // use sp_core::{blake2_128, ConstU8};
-    use parity_scale_codec::{Encode,Decode};
+    use {
+        parity_scale_codec::{Decode, Encode},
+        sp_core::ConstU8,
+    };
 
     use super::*;
 
     impl<T: Config> Pallet<T> {
-        // helper function to generate onchain keyless account 
-        pub fn generate_pool_account(asset_id: T::AssetId) -> AccountIdFor<T> {
-            let entropy = (b"spectre/salt",asset_id).using_encoded(blake2_128);
+        // helper function to generate onchain keyless account
+        pub fn generate_pool_account(asset_id: T::CurrencyId) -> AccountIdFor<T> {
+            let entropy = (b"spectre/salt", asset_id).using_encoded(blake2_128);
             let pool_account_id = Decode::decode(&mut TrailingZeroInput::new(entropy.as_ref()))
-            .expect("Infinite length input, Cant create an account");
+                .expect("Infinite length input, Cant create an account");
 
             pool_account_id
         }
-    } 
+    }
 
     /// Tracking Trader activities
     /// `trading account`: The linked on chain trading account per trader sovereign account
@@ -44,43 +49,60 @@ pub mod utils {
     pub struct TraderProfile<T: Config> {
         pub trading_account: Option<AccountIdFor<T>>,
         pub bonded_amount: TraderBond<T>,
-        pub funds_allocated: u128, //BalanceOf<T>,
+        pub funds_allocated: AssetBalance<T>, //BalanceOf<T>,
         pub credits: u8,
         pub trades_executed: u16,
-    } 
+    }
 
     /// Tracking investor investments
     /// `deposited_capital`: Total capital deposited/ contributed to the pool
     /// `lp_ownership`: Total pool percentage ownerhip per ownership
     /// `accumulated profit`: Total points representing profits to be later claimed
     /// `withdraw_period`: Total time that should elapse for investor to withdraw capital + profit
-    #[derive(Encode, Decode, Clone, Default, TypeInfo)]
+    #[derive(Encode, Decode, Clone, TypeInfo)]
     #[scale_info(skip_type_params(T))]
     pub struct InvestorProfile<T: Config> {
-        pub deposited_capital: Vec<(T::AssetId,u128)>, //This should be BoundedBTreeMap but am getting lots of errors TODO! consider fixing
+        pub investor_id: Option<AccountIdFor<T>>,
+        pub deposited_capital: Vec<(T::CurrencyId, AssetBalance<T>)>, //This should be BoundedBTreeMap but am getting lots of errors TODO! consider fixing
         //pub lp_ownership: Permill,
         pub block_number: BlockNumberFor<T>,
         pub claimed_profit: u32,
         pub withdraw_period: BlockNumberFor<T>,
     }
 
-    impl<T: Config> InvestorProfile<T> {
-    
-
-       pub fn add_capital(&mut self,asset_id:T::AssetId, amount:u128){
-            // check if the capital under the asset has been already provided
-            self.deposited_capital.clone().iter().for_each(|(inner_asset_id,mut balance)|{
-                if &asset_id == inner_asset_id {
-                    balance += amount
-                }else{
-                    self.deposited_capital.push((asset_id.clone(),amount))
-                }
-            });
-
-       }
+    impl<T: Config> Default for InvestorProfile<T> {
+        fn default() -> Self {
+            Self {
+                deposited_capital: vec![],
+                block_number: <frame_system::Pallet<T>>::block_number(),
+                claimed_profit: 0,
+                withdraw_period: T::WithdrawPeriod::get(),
+                investor_id: None,
+            }
+        }
     }
 
-   
+    impl<T: Config> InvestorProfile<T> {
+        pub fn register_capital(
+            &mut self,
+            investor_id: AccountIdFor<T>,
+            asset_id: T::CurrencyId,
+            amount: AssetBalance<T>,
+        ) {
+            self.investor_id = Some(investor_id);
+            // check if the capital under the asset has been already provided
+            self.deposited_capital
+                .clone()
+                .iter()
+                .for_each(|(inner_asset_id, mut balance)| {
+                    if &asset_id == inner_asset_id {
+                        balance += amount
+                    } else {
+                        self.deposited_capital.push((asset_id.clone(), amount))
+                    }
+                });
+        }
+    }
 
     /// Capital Pool management
     /// `total_capital`: Total contributed asset amount
@@ -90,51 +112,49 @@ pub mod utils {
     #[derive(Encode, Decode, Clone, RuntimeDebug, MaxEncodedLen, TypeInfo)]
     #[scale_info(skip_type_params(T))]
     pub struct InvestorCapitalPool<T: Config> {
-        pub asset_name: T::AssetId,
-        pub total_capital: u128, //BalanceOf<T>,
-        pub remaining_capital: u128,
-        pub total_allocated_capital: u128,
-        pub unrealized_balance: u128,
+        pub asset_name: T::CurrencyId,
+        pub total_capital: AssetBalance<T>, //BalanceOf<T>,
+        pub remaining_capital: AssetBalance<T>,
+        pub total_allocated_capital: AssetBalance<T>,
+        pub unrealized_balance: AssetBalance<T>,
         pub created_at: BlockNumberFor<T>,
-        pub fee: u8, // in percentage, 
-        pub account_id: AccountIdFor<T>
+        pub fee: u8, // in percentage,
+        pub account_id: AccountIdFor<T>,
     }
 
     impl<T: Config> InvestorCapitalPool<T> {
-        pub fn update_allocated_funds(&mut self, amount:u128) {
+        pub fn update_allocated_funds(&mut self, amount: AssetBalance<T>) {
             self.remaining_capital -= amount;
             self.total_allocated_capital += amount
         }
 
-        pub fn add_capital(&mut self, amount: u128) {
+        pub fn add_capital(&mut self, amount: AssetBalance<T>) {
             self.total_capital += amount;
             self.remaining_capital += amount;
         }
 
-        pub fn deduct_unreliazed_balance(&mut self, amount: u128) {
+        pub fn deduct_unreliazed_balance(&mut self, amount: AssetBalance<T>) {
             self.unrealized_balance -= amount
         }
 
-        pub fn add_unrealized_balance(&mut self, amount: u128){
+        pub fn add_unrealized_balance(&mut self, amount: AssetBalance<T>) {
             self.unrealized_balance += amount
         }
     }
 
-
     impl<T: Config> Default for InvestorCapitalPool<T> {
         fn default() -> InvestorCapitalPool<T> {
-
-            let account_id = Pallet::<T>::generate_pool_account(T::DefaultAsset::get());
-            let blocknumber =<frame_system::Pallet<T>>::block_number();
+            let account_id = Pallet::<T>::generate_pool_account(T::CurrencyId::default());
+            let blocknumber = <frame_system::Pallet<T>>::block_number();
             Self {
-                asset_name: T::DefaultAsset::get(), 
-                total_capital: 0, 
-                created_at: blocknumber, 
-                fee: 1, 
-                remaining_capital: 0, 
-                total_allocated_capital: 0, 
-                unrealized_balance: 0, 
-                account_id
+                asset_name: T::CurrencyId::default(),
+                total_capital: AssetBalance::<T>::default(),
+                created_at: blocknumber,
+                fee: 1,
+                remaining_capital: AssetBalance::<T>::default(),
+                total_allocated_capital: AssetBalance::<T>::default(),
+                unrealized_balance: AssetBalance::<T>::default(),
+                account_id,
             }
         }
     }
@@ -143,7 +163,7 @@ pub mod utils {
     #[derive(Encode, Decode, Clone, RuntimeDebug, MaxEncodedLen, TypeInfo)]
     #[scale_info(skip_type_params(T))]
     pub struct TraderBond<T: Config> {
-        pub amount: T::AssetId,
+        pub amount: T::CurrencyId,
         pub stake: bool,
     }
 
@@ -250,7 +270,7 @@ pub mod utils {
             trader_id: AccountIdFor<T>,
             network: Networks,
             proofs: StateProof,
-        ) -> u128;
+        ) -> AssetBalance<T>;
 
         // Verify consensus commitment on N blockheight
         fn verify_consensus_state(network: Networks, proofs: ConsensusProofs) -> bool;
@@ -298,8 +318,8 @@ pub mod utils {
             trader_id: AccountIdFor<T>,
             network: Networks,
             proofs: StateProof,
-        ) -> u128 {
-            0
+        ) -> AssetBalance<T> {
+            AssetBalance::<T>::default()
         }
 
         fn verify_trade_tx_inclusion(network: Networks, proofs: TransactionInclusionProof) -> bool {
@@ -355,7 +375,7 @@ pub mod utils {
     //         .map_err(|_| TransactionValidityError::Unknown(UnknownTransaction::Custom(3)))?
     //         .ok_or(TransactionValidityError::Unknown(UnknownTransaction::Custom(3)))?;
 
-    //         let trading_roi: u128 /*This should asset id type */ = Decode::decode(&mut &encoded_balance[..])
+    //         let trading_roi: AssetBalance<T> /*This should asset id type */ = Decode::decode(&mut &encoded_balance[..])
     //             .map_err(|_| TransactionValidityError::Unknown(UnknownTransaction::Custom(4)))?;
 
     //         // reward algorithm

@@ -24,7 +24,7 @@ smallvec = { workspace = true }
 #Orml
 orml-traits = {workspace = true}
 orml-xtokens ={ workspace=true }
-# orml-tokens = { workspace = true}
+orml-tokens = { workspace = true}
 orml-asset-registry = {workspace = true}
 
 # Local
@@ -229,7 +229,8 @@ std = [
 	"pallet-scheduler/std",
 	"orml-traits/std",
 	"orml-xtokens/std",
-	"orml-asset-registry/std"
+	"orml-asset-registry/std",
+	"orml-tokens/std"
 ]
 
 # Allow to print logs details (no wasm:stripped)

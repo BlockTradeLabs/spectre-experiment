@@ -28,19 +28,20 @@ use sp_version::NativeVersion;
 
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
-use staging_xcm_executor::XcmExecutor;
-use xcm_config::XcmConfig;
+use {staging_xcm_executor::XcmExecutor, xcm_config::XcmConfig};
 
 pub mod migrations;
 mod precompiles;
 pub mod xcm_config;
 
 use {
-    crate::precompiles::TemplatePrecompiles,
-    crate::xcm_config::{
-        AssetId, ForeignAssetsApprovalDeposit, ForeignAssetsAssetAccountDeposit,
-        ForeignAssetsAssetsStringLimit, ForeignAssetsMetadataDepositBase,
-        ForeignAssetsMetadataDepositPerByte,
+    crate::{
+        precompiles::TemplatePrecompiles,
+        xcm_config::{
+            AssetId, ForeignAssetsApprovalDeposit, ForeignAssetsAssetAccountDeposit,
+            ForeignAssetsAssetsStringLimit, ForeignAssetsMetadataDepositBase,
+            ForeignAssetsMetadataDepositPerByte,
+        },
     },
     cumulus_pallet_parachain_system::RelayNumberStrictlyIncreases,
     cumulus_primitives_core::AggregateMessageOrigin,
@@ -104,35 +105,38 @@ pub use {
     sp_runtime::{MultiAddress, Perbill, Permill},
 };
 
-use frame_support::traits::{EnsureOriginWithArg, EqualPrivilegeOnly, Everything};
-use frame_support::pallet_prelude::EnsureOrigin;
-use frame_system::EnsureSignedBy;
-use sp_runtime::traits::Convert;
-use orml_traits::parameter_type_with_key;
-use cumulus_primitives_core::ParaId;
-use staging_xcm::opaque::latest::{
-    MultiLocation,
-    InteriorMultiLocation,
-    NetworkId,
-    Junctions::*,
-    Junction::*,
-    MultiAsset
+use {
+    cumulus_primitives_core::ParaId,
+    frame_support::{
+        pallet_prelude::EnsureOrigin,
+        traits::{EnsureOriginWithArg, EqualPrivilegeOnly, Everything, Nothing},
+    },
+    frame_system::EnsureSignedBy,
+    orml_traits::parameter_type_with_key,
+    sp_runtime::traits::Convert,
+    staging_xcm::opaque::latest::{
+        InteriorMultiLocation, Junction::*, Junctions::*, MultiAsset, MultiLocation, NetworkId,
+    },
 };
 
-use staging_xcm::latest::prelude::*;
-use staging_xcm_builder::{
-    AccountKey20Aliases, AllowKnownQueryResponses, AllowSubscriptionsFrom,
-    AllowTopLevelPaidExecutionFrom, AllowUnpaidExecutionFrom, EnsureXcmOrigin, FixedWeightBounds,
-    ParentIsPreset, RelayChainAsNative, SiblingParachainAsNative, SiblingParachainConvertsVia,
-    SovereignSignedViaLocation, TakeRevenue,
-    TakeWeightCredit, UsingComponents
+use {
+    orml_asset_registry::ExistentialDeposits as AssetRegistryExistentialDeposits,
+    pallet_scheduler,
+    staging_xcm::latest::prelude::*,
+    staging_xcm_builder::{
+        AccountKey20Aliases, AllowKnownQueryResponses, AllowSubscriptionsFrom,
+        AllowTopLevelPaidExecutionFrom, AllowUnpaidExecutionFrom, EnsureXcmOrigin,
+        FixedWeightBounds, ParentIsPreset, RelayChainAsNative, SiblingParachainAsNative,
+        SiblingParachainConvertsVia, SovereignSignedViaLocation, TakeRevenue, TakeWeightCredit,
+        UsingComponents,
+    },
 };
-use pallet_scheduler;
 // Orml
-use orml_traits::{self, location::AbsoluteReserveProvider};
-use pallet_spectre;
-use orml_asset_registry;
-use orml_xtokens;
+use {
+    orml_asset_registry, orml_tokens,
+    orml_traits::{self, location::AbsoluteReserveProvider},
+    orml_xtokens, pallet_spectre,
+};
 
 // Polkadot imports
 use polkadot_runtime_common::BlockHashCount;
@@ -897,15 +901,30 @@ parameter_types! {
 
 // ========================================================================
 
-// #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-// pub enum CurrencyId {
-// 	/// Relay chain token.
-// 	sfDOT,
-// 	/// Parachain AssetHub token.
-// 	sfUSDT,
-// 	/// Parachain AssetHub token.
-// 	sfUSDC,
-// }
+parameter_type_with_key! {
+    pub ExistentialDeposits: |currency_id: AssetId| -> Balance {
+        if currency_id == &DOT_ASSET_ID {
+            ExistentialDeposit::get()
+        } else {
+         AssetRegistryExistentialDeposits::<Runtime>::get(currency_id)
+        }
+    };
+}
+
+impl orml_tokens::Config for Runtime {
+    type RuntimeEvent = RuntimeEvent;
+    type Balance = Balance;
+    type Amount = i128;
+    type CurrencyHooks = (); // Hooks can be when user deposits, native tokens should be sent to their accounts
+    type CurrencyId = AssetId;
+    type DustRemovalWhitelist = Nothing;
+    type ExistentialDeposits = ExistentialDeposits;
+    type MaxLocks = ConstU32<0>;
+    type MaxReserves = ConstU32<3>;
+    type ReserveIdentifier = [u8; 8];
+    type WeightInfo = ();
+}
+
 pub const DOT_ASSET_ID: AssetId = 0;
 pub const USDT_ASSET_ID: AssetId = 1;
 pub const USDC_ASSET_ID: AssetId = 2;
@@ -1001,7 +1020,6 @@ parameter_types! {
     pub UniversalLocation: InteriorMultiLocation = X2(GlobalConsensus(RelayNetwork::get()), Parachain(ParachainInfo::parachain_id().into()));
 }
 
-
 impl orml_xtokens::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
 
@@ -1032,10 +1050,10 @@ impl orml_xtokens::Config for Runtime {
     type ReserveProvider = AbsoluteReserveProvider;
 }
 
-
 parameter_types! {
-	pub MaximumSchedulerWeight: Weight = Perbill::from_percent(80) *
-		BlockWeights::default().max_block;
+    pub MaximumSchedulerWeight: Weight = Perbill::from_percent(80) *
+        BlockWeights::default().max_block;
+    pub WithdrawPeriod: BlockNumber = 400_000;
 }
 
 impl pallet_scheduler::Config for Runtime {
@@ -1076,11 +1094,10 @@ impl EnsureOriginWithArg<RuntimeOrigin, Option<u32>> for AssetAuthority {
         unimplemented!()
     }
 }
-#[derive(Eq, Debug, Clone,PartialEq, TypeInfo)]
+#[derive(Eq, Debug, Clone, PartialEq, TypeInfo)]
 pub struct CustomMetadata {
-	pub fee_per_second: u128,
+    pub fee_per_second: u128,
 }
-
 
 impl orml_asset_registry::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
@@ -1107,32 +1124,7 @@ impl pallet_spectre::Config for Runtime {
     type TradeExecutionVerifier = ();
     type InvestorPoolOwnership = ConstU8<30>;
     type TraderPoolOwnership = ConstU8<60>;
-    type DefaultAsset = DefaultAsset;
-    type DefaultBalance = DefaultBalance;
-    type TotalSupportedAssets = ConstU8<4>;
-}
-
-impl pallet_assets::Config for Runtime {
-    type RuntimeEvent = RuntimeEvent;
-    type Balance = Balance;
-    type AssetId = AssetId;
-    type AssetIdParameter = AssetId;
-    type Currency = Balances;
-    type CreateOrigin = frame_support::traits::NeverEnsureOrigin<AccountId>;
-    type ForceOrigin = EnsureRoot<AccountId>;
-    type AssetDeposit = ForeignAssetsApprovalDeposit;
-    type MetadataDepositBase = ForeignAssetsMetadataDepositBase;
-    type MetadataDepositPerByte = ForeignAssetsMetadataDepositPerByte;
-    type ApprovalDeposit = ForeignAssetsApprovalDeposit;
-    type StringLimit = ForeignAssetsAssetsStringLimit;
-    type Freezer = ();
-    type Extra = ();
-    type WeightInfo = pallet_assets::weights::SubstrateWeight<Runtime>;
-    type CallbackHandle = ();
-    type AssetAccountDeposit = ForeignAssetsAssetAccountDeposit;
-    type RemoveItemsLimit = frame_support::traits::ConstU32<1000>;
-    #[cfg(feature = "runtime-benchmarks")]
-    type BenchmarkHelper = ForeignAssetBenchmarkHelper;
+    type WithdrawPeriod = WithdrawPeriod;
 }
 
 impl_tanssi_pallets_config!(Runtime);
@@ -1190,9 +1182,9 @@ construct_runtime!(
 
         AssetRegistry: orml_asset_registry,
 
-        Xtokens: orml_xtokens,
+        Assets: orml_tokens,
 
-        Assets: pallet_assets,
+        Xtokens: orml_xtokens,
 
         Spectre: pallet_spectre
     }

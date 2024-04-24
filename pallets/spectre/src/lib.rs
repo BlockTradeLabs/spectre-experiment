@@ -32,15 +32,16 @@
 
 pub mod util;
 
-use frame_support::{pallet_prelude::*, traits::fungible, Blake2_128Concat};
-use sp_arithmetic::Permill;
-use sp_core::H256;
-use sp_std::vec;
-use sp_std::vec::Vec;
-use sp_trie::{read_trie_value, verify_trie_proof, LayoutV1, MemoryDB, StorageProof, TrieDB};
-use frame_support::sp_runtime::traits::StaticLookup;
-use orml_xtokens;
-use orml_asset_registry;
+use {
+    frame_support::{
+        pallet_prelude::*, sp_runtime::traits::StaticLookup, traits::fungible, Blake2_128Concat,
+    },
+    orml_asset_registry, orml_tokens, orml_xtokens,
+    sp_arithmetic::Permill,
+    sp_core::H256,
+    sp_std::{vec, vec::Vec},
+    sp_trie::{read_trie_value, verify_trie_proof, LayoutV1, MemoryDB, StorageProof, TrieDB},
+};
 
 use util::*;
 
@@ -49,10 +50,13 @@ pub use pallet::*;
 #[frame_support::pallet]
 pub mod pallet {
 
-    use frame_support::sp_runtime::{traits::BlakeTwo256, MultiAddress};
-    use frame_system::{
-        ensure_none, ensure_signed,
-        pallet_prelude::{BlockNumberFor, OriginFor},
+    use {
+        frame_support::sp_runtime::{traits::BlakeTwo256, MultiAddress},
+        frame_system::{
+            ensure_none, ensure_signed,
+            pallet_prelude::{BlockNumberFor, OriginFor},
+            RawOrigin,
+        },
     };
 
     use crate::*;
@@ -61,9 +65,13 @@ pub mod pallet {
         <T as frame_system::Config>::AccountId,
     >>::Balance;
     pub type AccountIdFor<T> = <T as frame_system::Config>::AccountId;
-    
+
+    pub type AssetBalance<T> = <T as orml_tokens::Config>::Balance;
+
     #[pallet::config]
-    pub trait Config: frame_system::Config + orml_asset_registry::module::Config {
+    pub trait Config:
+        frame_system::Config + orml_asset_registry::module::Config + orml_tokens::Config
+    {
         type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
         type NativeBalance: fungible::Inspect<AccountIdFor<Self>>
@@ -86,19 +94,13 @@ pub mod pallet {
         /// Constant: Percentage ownrship for trader
         #[pallet::constant]
         type TraderPoolOwnership: Get<u8>;
-        /// Number of assets supported 
-        #[pallet::constant]
-        type TotalSupportedAssets: Get<u8>;
-        /// Default Asset Id used to initialize capital pool storage
-        type DefaultAsset: Get<Self::AssetId>;
-        /// Default Capital Pool Balance
-        type DefaultBalance: Get<Self::Balance>;
+        /// Constant: Withdraw period that should pass for investor to withdraw capital + returns
+        type WithdrawPeriod: Get<BlockNumberFor<Self>>;
     }
 
     #[pallet::pallet]
     pub struct Pallet<T>(_);
 
-   
     #[pallet::storage]
     #[pallet::unbounded]
     pub type InvestorProfiles<T: Config> =
@@ -115,7 +117,8 @@ pub mod pallet {
 
     /// A mapping of asset id to capital pool
     #[pallet::storage]
-    pub type CapitalPool<T: Config> = StorageMap<_,Twox64Concat,T::AssetId,InvestorCapitalPool<T>>;
+    pub type CapitalPool<T: Config> =
+        StorageMap<_, Twox64Concat, T::CurrencyId, InvestorCapitalPool<T>, ValueQuery>;
 
     /// Relayer account that is responsible for submitting txn for registering trader account and onchain trading account
     /// relating to the trader generated onchain from the contract
@@ -126,20 +129,22 @@ pub mod pallet {
     #[pallet::genesis_config]
     pub struct GenesisConfig<T: Config> {
         pub relayer: Option<AccountIdFor<T>>,
-        // pub supported_assets: Vec<T::AssetId>,
-        // pub initial_capital: u128,
-        // pub initial_blocktime_pool: BlockNumberFor<T>,
-        // pub fee: u8,
-        // pub pool_account_id: AccountIdFor<T>
+        pub supported_assets: Vec<T::CurrencyId>,
+        pub initial_capital: AssetBalance<T>,
+        pub initial_blocktime_pool: BlockNumberFor<T>,
+        pub fee: u8,
+        pub pool_account_id: AccountIdFor<T>,
     }
 
     impl<T: Config> Default for GenesisConfig<T> {
         fn default() -> Self {
             Self {
                 relayer: None,
-                // supported_assets: vec![],
-                // initial_capital: 0,
-
+                supported_assets: vec![],
+                initial_capital: AssetBalance::<T>::default(),
+                initial_blocktime_pool: <frame_system::Pallet<T>>::block_number(),
+                fee: 0,
+                pool_account_id: Pallet::<T>::generate_pool_account(T::CurrencyId::default()),
             }
         }
     }
@@ -151,23 +156,21 @@ pub mod pallet {
                 self.relayer
                     .clone()
                     .expect(" Setup spectre relayer account"),
-            
             );
-            // self.supported_assets.iter().for_each(|asset|{
-            //     let value = InvestorCapitalPool {
-            //         asset_name: asset.clone(),
-            //         total_capital: self.initial_capital, 
-            //         remaining_capital: self.initial_capital, 
-            //         total_allocated_capital: self.initial_capital, 
-            //         unrealized_balance: self.initial_capital, 
-            //         created_at: self.initial_blocktime_pool, 
-            //         fee: self.fee, 
-            //         account_id: self.pool_account_id.clone()
-            //     };
+            self.supported_assets.iter().for_each(|asset| {
+                let investor_pool = InvestorCapitalPool {
+                    asset_name: asset.clone(),
+                    total_capital: self.initial_capital,
+                    remaining_capital: self.initial_capital,
+                    total_allocated_capital: self.initial_capital,
+                    unrealized_balance: self.initial_capital,
+                    created_at: self.initial_blocktime_pool,
+                    fee: self.fee,
+                    account_id: self.pool_account_id.clone(),
+                };
 
-            //     CapitalPool::<T>::insert(asset,value);
-            // })
-            
+                CapitalPool::<T>::insert(asset, investor_pool);
+            });
         }
     }
 
@@ -202,7 +205,11 @@ pub mod pallet {
         /// Failed to verify inclusion of buy and sell trade transaction and state execution result
         InvalidProofSubmission,
         /// Failed to update capital balance
-        FailedToAddCapital
+        FailedToAddCapital,
+        /// Returned when Asset Pool not currently supported
+        AssetPoolNotSupported,
+        /// Returned when failed to transfer funds from investor to pool account
+        FailedToTransferCapitalToPool,
     }
 
     #[pallet::event]
@@ -257,7 +264,6 @@ pub mod pallet {
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
-
         /// This extrinsic registers investor by depositing capital to the pool and registering the details in `InvestorProfile`
         /// As the Investor can register in atmost 4 pools supporting assets
         /// Calling this function by specifying the asset registers to the specific pool, if the investors did register, it will add the assets.
@@ -265,33 +271,37 @@ pub mod pallet {
         #[pallet::weight(Weight::default())]
         pub fn register_investor(
             origin: OriginFor<T>,
-            asset: T::AssetId,
-            capital_amount: T::Balance,
+            asset_id: T::CurrencyId,
+            capital_amount: AssetBalance<T>,
         ) -> DispatchResult {
-            let investor = ensure_signed(origin)?;
-            // check if the pool is available
-            // This logic of initializing the pool after investor depositing is subjected to change once
-            // I find a way to initialize T::AssetId parameter
-            // CapitalPool::<T>::try_mutate(asset.into(),|pool|{
-            //     // update the pool & investor profile with correct ownership
-            //     // transfer from investor to pool
-            //     let pool_id_source = T::Lookup::unlookup(pool.account_id);
+            let investor = ensure_signed(origin.clone())?;
 
-            //     let blocknumber = <frame_system::Pallet<T>>::block_number();
+            ensure!(
+                CapitalPool::<T>::contains_key(asset_id.clone()),
+                Error::<T>::AssetPoolNotSupported
+            );
 
-            //     // let deposited_capital = BoundedBTreeMap::from()
-            //     // let mut investor_profile = InvestorProfile {
-            //     //     deposited_capital:
-            //     // };
-            //     // investor_profile::add_capital()
-
-            //      // schedule the actual depositing of asset
-            //     <pallet_assets::Pallet::<T>>::transfer(origin, asset, pool_id_source, capital_amount)?;
-            // });
-                
+            let _ = CapitalPool::<T>::try_mutate(asset_id.clone(), |pool| {
+                // update the pool & investor profile with correct ownership
+                // transfer from investor to pool
+                let pool_id_source = T::Lookup::unlookup(pool.account_id.clone());
+                // update pool
+                pool.add_capital(capital_amount);
+                // update investor profile
+                let mut investor_profile = InvestorProfile::<T>::default();
+                investor_profile.register_capital(investor.clone(), asset_id, capital_amount);
+                // actual depositing of asset
+                <orml_tokens::Pallet<T>>::transfer_keep_alive(
+                    RawOrigin::Signed(investor).into(),
+                    pool_id_source,
+                    asset_id,
+                    capital_amount,
+                )
+                .map_err(|_| Error::<T>::FailedToTransferCapitalToPool)?;
+                Ok::<(), Error<T>>(())
+            });
 
             Ok(())
-        
         }
 
         #[pallet::call_index(1)]
