@@ -12,6 +12,7 @@ List of symbols:
 
 | Dex                     | Status             |
 | ------------------------| -------------------|
-| HYDRA DX (Polkadot)     | 🏗️                 | 
+| HYDRA DX (Polkadot)     | 🏗️                 |
+| StellaSwap (Polkadot)   | 🏗️                 |  
 | UniSwap (Ethereum)      | ❌                 |
 | JupiterSwap (Solana)    | ❌                 |
