@@ -107,8 +107,14 @@ pub mod pallet {
         CountedStorageMap<_, Blake2_128Concat, AccountIdFor<T>, InvestorProfile<T>>;
 
     #[pallet::storage]
-    pub type TraderProfiles<T: Config> =
-        CountedStorageMap<_, Blake2_128Concat, AccountIdFor<T>, TraderProfile<T>>;
+    pub type TraderProfiles<T: Config> = StorageDoubleMap<
+        _,
+        Blake2_128Concat,
+        AccountIdFor<T>,
+        Blake2_128Concat,
+        AccountIdFor<T>,
+        TraderProfile<T>,
+    >;
 
     /// A mapping of Trader Soverign Account to the Onchain Trading Account
     #[pallet::storage]
@@ -242,19 +248,27 @@ pub mod pallet {
         }
 
         fn validate_unsigned(source: TransactionSource, call: &Self::Call) -> TransactionValidity {
-            let (trader_id, network, trade_execution_proof, trade_action) = match call {
+            let (trader_id, asset_id, network, trade_execution_proof, trade_action) = match call {
                 Call::verify_trade {
                     trader_id,
+                    asset_id,
                     network,
                     trade_execution_proof,
                     trade_action,
-                } => (trader_id, network, trade_execution_proof, trade_action),
+                } => (
+                    trader_id,
+                    asset_id,
+                    network,
+                    trade_execution_proof,
+                    trade_action,
+                ),
                 _ => Err(TransactionValidityError::Invalid(InvalidTransaction::Call))?,
             };
 
             // verify proofs submitted per the network
             T::TradeExecutionVerifier::verify_trade_execution(
                 trader_id.clone(),
+                asset_id.clone(),
                 network.clone(),
                 trade_execution_proof.clone(),
                 trade_action.clone(),
@@ -341,6 +355,7 @@ pub mod pallet {
         pub fn verify_trade(
             origin: OriginFor<T>,
             trader_id: AccountIdFor<T>,
+            asset_id: T::CurrencyId,
             network: Networks,
             trade_execution_proof: TradeExecutionProof<BlockNumberFor<T>>,
             trade_action: TradeAction,
@@ -350,6 +365,7 @@ pub mod pallet {
                 TransactionSource::External,
                 &Call::verify_trade {
                     trader_id,
+                    asset_id,
                     network,
                     trade_execution_proof,
                     trade_action,
