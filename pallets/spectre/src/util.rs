@@ -1,11 +1,11 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use frame_support::pallet_prelude::*;
-use frame_support::DefaultNoBound;
-use frame_system::pallet_prelude::*;
-use sp_std::vec;
-use sp_std::vec::Vec;
-use sp_io::hashing::blake2_128;
+use {
+    frame_support::{pallet_prelude::*, DefaultNoBound},
+    frame_system::pallet_prelude::*,
+    sp_io::hashing::blake2_128,
+    sp_std::{vec, vec::Vec},
+};
 
 use super::pallet::*;
 
@@ -15,24 +15,72 @@ pub mod utils {
 
     extern crate alloc;
 
-    use alloc::collections::BTreeMap;
-    use frame_support::sp_runtime::{traits::TrailingZeroInput, MultiAddress};
-    use sp_arithmetic::Permill;
+    use {
+        frame_support::sp_runtime::traits::BlakeTwo256,
+        sp_core::{
+            serde::{Deserialize, Serialize},
+            H256,
+        },
+        sp_trie::{LayoutV1, StorageProof, TrieDBBuilder},
+    };
+
+    use {
+        alloc::collections::BTreeMap,
+        frame_support::sp_runtime::{traits::TrailingZeroInput, MultiAddress},
+        sp_arithmetic::Permill,
+    };
     // use sp_core::{blake2_128, ConstU8};
-    use parity_scale_codec::{Encode,Decode};
+    use {
+        //hash_db::HashDB,
+        parity_scale_codec::{Decode, Encode},
+        sp_core::ConstU8,
+        sp_trie::Trie,
+    };
 
     use super::*;
 
     impl<T: Config> Pallet<T> {
-        // helper function to generate onchain keyless account 
-        pub fn generate_pool_account(asset_id: T::AssetId) -> AccountIdFor<T> {
-            let entropy = (b"spectre/salt",asset_id).using_encoded(blake2_128);
+        // helper function to generate onchain keyless account
+        pub fn generate_pool_account(asset_id: T::CurrencyId) -> AccountIdFor<T> {
+            let entropy = (b"spectre/salt", asset_id).using_encoded(blake2_128);
             let pool_account_id = Decode::decode(&mut TrailingZeroInput::new(entropy.as_ref()))
-            .expect("Infinite length input, Cant create an account");
+                .expect("Infinite length input, Cant create an account");
 
             pool_account_id
         }
-    } 
+
+        // For trade execution verifier
+        // pub fn read_proof_check<H, I>(
+        //     root: &H::Out,
+        //     proof: StorageProof,
+        //     keys: I,
+        // ) -> Result<BTreeMap<Vec<u8>, Option<Vec<u8>>>, Error<T>>
+        // where
+        //     H: hash_db::Hasher,
+        //     H::Out: scale_info::prelude::fmt::Debug,
+        //     I: IntoIterator,
+        //     I::Item: AsRef<[u8]>,
+        // {
+        //     let db = proof.into_memory_db();
+
+        //     if !db.contains(root, hash_db::EMPTY_PREFIX) {
+        //         Err(Error::<T>::FailedTradeProof)?
+        //     }
+
+        //     let trie = TrieDBBuilder::<LayoutV1<H>>::new(&db, root).build();
+        //     let mut result = BTreeMap::new();
+
+        //     for key in keys.into_iter() {
+        //         let value = trie
+        //             .get(key.as_ref())
+        //             .map_err(|e| Error::<T>::FailedTradeProof)?
+        //             .and_then(|val| Decode::decode(&mut &val[..]).ok());
+        //         result.insert(key.as_ref().to_vec(), value);
+        //     }
+
+        //     Ok(result)
+        // }
+    }
 
     /// Tracking Trader activities
     /// `trading account`: The linked on chain trading account per trader sovereign account
@@ -42,45 +90,89 @@ pub mod utils {
     #[derive(Encode, Decode, Clone, RuntimeDebug, MaxEncodedLen, TypeInfo)]
     #[scale_info(skip_type_params(T))]
     pub struct TraderProfile<T: Config> {
-        pub trading_account: Option<AccountIdFor<T>>,
+        pub trading_account: AccountIdFor<T>,
+        pub asset_id: T::CurrencyId,
         pub bonded_amount: TraderBond<T>,
-        pub funds_allocated: u128, //BalanceOf<T>,
+        pub funds_allocated: AssetBalance<T>, //BalanceOf<T>,
+        pub unrealized_balance: AssetBalance<T>,
         pub credits: u8,
         pub trades_executed: u16,
-    } 
+    }
+
+    impl<T: Config> TraderProfile<T> {
+        pub fn update_unrealized_balance(&mut self, balance: AssetBalance<T>) {
+            self.unrealized_balance = balance;
+            self.trades_executed += 1
+        }
+
+        pub fn deposit_allocated_funds(&mut self, balance: AssetBalance<T>) {
+            self.funds_allocated += balance
+        }
+
+        pub fn new(asset_id: T::CurrencyId, trading_account: AccountIdFor<T>) -> Self {
+            // needs to calculate credits upon registering new trader
+            // TODO!!!!
+            Self {
+                trading_account,
+                asset_id,
+                bonded_amount: TraderBond::<T>::default(),
+                funds_allocated: AssetBalance::<T>::default(),
+                unrealized_balance: AssetBalance::<T>::default(),
+                credits: 0,
+                trades_executed: 0,
+            }
+        }
+    }
 
     /// Tracking investor investments
     /// `deposited_capital`: Total capital deposited/ contributed to the pool
     /// `lp_ownership`: Total pool percentage ownerhip per ownership
     /// `accumulated profit`: Total points representing profits to be later claimed
     /// `withdraw_period`: Total time that should elapse for investor to withdraw capital + profit
-    #[derive(Encode, Decode, Clone, Default, TypeInfo)]
+    #[derive(Encode, Decode, Clone, TypeInfo)]
     #[scale_info(skip_type_params(T))]
     pub struct InvestorProfile<T: Config> {
-        pub deposited_capital: Vec<(T::AssetId,u128)>, //This should be BoundedBTreeMap but am getting lots of errors TODO! consider fixing
+        pub investor_id: Option<AccountIdFor<T>>,
+        pub deposited_capital: Vec<(T::CurrencyId, AssetBalance<T>)>, //This should be BoundedBTreeMap but am getting lots of errors TODO! consider fixing
         //pub lp_ownership: Permill,
         pub block_number: BlockNumberFor<T>,
         pub claimed_profit: u32,
         pub withdraw_period: BlockNumberFor<T>,
     }
 
-    impl<T: Config> InvestorProfile<T> {
-    
-
-       pub fn add_capital(&mut self,asset_id:T::AssetId, amount:u128){
-            // check if the capital under the asset has been already provided
-            self.deposited_capital.clone().iter().for_each(|(inner_asset_id,mut balance)|{
-                if &asset_id == inner_asset_id {
-                    balance += amount
-                }else{
-                    self.deposited_capital.push((asset_id.clone(),amount))
-                }
-            });
-
-       }
+    impl<T: Config> Default for InvestorProfile<T> {
+        fn default() -> Self {
+            Self {
+                deposited_capital: vec![],
+                block_number: <frame_system::Pallet<T>>::block_number(),
+                claimed_profit: 0,
+                withdraw_period: T::WithdrawPeriod::get(),
+                investor_id: None,
+            }
+        }
     }
 
-   
+    impl<T: Config> InvestorProfile<T> {
+        pub fn register_capital(
+            &mut self,
+            investor_id: AccountIdFor<T>,
+            asset_id: T::CurrencyId,
+            amount: AssetBalance<T>,
+        ) {
+            self.investor_id = Some(investor_id);
+            // check if the capital under the asset has been already provided
+            self.deposited_capital
+                .clone()
+                .iter()
+                .for_each(|(inner_asset_id, mut balance)| {
+                    if &asset_id == inner_asset_id {
+                        balance += amount
+                    } else {
+                        self.deposited_capital.push((asset_id.clone(), amount))
+                    }
+                });
+        }
+    }
 
     /// Capital Pool management
     /// `total_capital`: Total contributed asset amount
@@ -90,60 +182,55 @@ pub mod utils {
     #[derive(Encode, Decode, Clone, RuntimeDebug, MaxEncodedLen, TypeInfo)]
     #[scale_info(skip_type_params(T))]
     pub struct InvestorCapitalPool<T: Config> {
-        pub asset_name: T::AssetId,
-        pub total_capital: u128, //BalanceOf<T>,
-        pub remaining_capital: u128,
-        pub total_allocated_capital: u128,
-        pub unrealized_balance: u128,
-        pub created_at: BlockNumberFor<T>,
-        pub fee: u8, // in percentage, 
-        pub account_id: AccountIdFor<T>
+        pub asset_name: T::CurrencyId,
+        pub total_capital: AssetBalance<T>, //BalanceOf<T>,
+        pub remaining_capital: AssetBalance<T>,
+        pub total_allocated_capital: AssetBalance<T>,
+        pub unrealized_balance: AssetBalance<T>,
+        pub fee: u8, // in percentage,
+        pub account_id: AccountIdFor<T>,
     }
 
     impl<T: Config> InvestorCapitalPool<T> {
-        pub fn update_allocated_funds(&mut self, amount:u128) {
+        pub fn update_allocated_funds(&mut self, amount: AssetBalance<T>) {
             self.remaining_capital -= amount;
             self.total_allocated_capital += amount
         }
 
-        pub fn add_capital(&mut self, amount: u128) {
+        pub fn add_capital(&mut self, amount: AssetBalance<T>) {
             self.total_capital += amount;
             self.remaining_capital += amount;
         }
 
-        pub fn deduct_unreliazed_balance(&mut self, amount: u128) {
+        pub fn deduct_unreliazed_balance(&mut self, amount: AssetBalance<T>) {
             self.unrealized_balance -= amount
         }
 
-        pub fn add_unrealized_balance(&mut self, amount: u128){
+        pub fn add_unrealized_balance(&mut self, amount: AssetBalance<T>) {
             self.unrealized_balance += amount
         }
     }
 
-
     impl<T: Config> Default for InvestorCapitalPool<T> {
         fn default() -> InvestorCapitalPool<T> {
-
-            let account_id = Pallet::<T>::generate_pool_account(T::DefaultAsset::get());
-            let blocknumber =<frame_system::Pallet<T>>::block_number();
+            let account_id = Pallet::<T>::generate_pool_account(T::CurrencyId::default());
             Self {
-                asset_name: T::DefaultAsset::get(), 
-                total_capital: 0, 
-                created_at: blocknumber, 
-                fee: 1, 
-                remaining_capital: 0, 
-                total_allocated_capital: 0, 
-                unrealized_balance: 0, 
-                account_id
+                asset_name: T::CurrencyId::default(),
+                total_capital: AssetBalance::<T>::default(),
+                fee: 1,
+                remaining_capital: AssetBalance::<T>::default(),
+                total_allocated_capital: AssetBalance::<T>::default(),
+                unrealized_balance: AssetBalance::<T>::default(),
+                account_id,
             }
         }
     }
 
     /// Trader bond details and indicator if the bond should be staked for more rewards
-    #[derive(Encode, Decode, Clone, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+    #[derive(Encode, Decode, Clone, DefaultNoBound, RuntimeDebug, MaxEncodedLen, TypeInfo)]
     #[scale_info(skip_type_params(T))]
     pub struct TraderBond<T: Config> {
-        pub amount: T::AssetId,
+        pub amount: T::CurrencyId,
         pub stake: bool,
     }
 
@@ -151,9 +238,39 @@ pub mod utils {
         Encode, Decode, Clone, PartialEq, RuntimeDebug, DefaultNoBound, MaxEncodedLen, TypeInfo,
     )]
     pub struct TradingAccounts<AccountId> {
-        substrate: Option<AccountId>,
-        ethereum: Option<AccountId>,
-        solana: Option<AccountId>,
+        pub substrate: Option<AccountId>,
+        pub ethereum: Option<AccountId>,
+        pub solana: Option<AccountId>,
+    }
+
+    /// Hashing algorithm for the state proof
+    // #[derive(Debug, Encode, Decode, Clone, Serialize, Deserialize)]
+    // pub enum HashAlgorithm {
+    //     /// For chains that use keccak as their hashing algo
+    //     Keccak,
+    //     /// For chains that use blake2 as their hashing algo
+    //     Blake2,
+    // }
+
+    /// Holds the relevant data needed for state proof verification
+    // #[derive(Debug, Encode, Decode, Clone)]
+    // pub struct SubstrateStateProof {
+    //     /// Algorithm to use for state proof verification
+    //     pub hasher: HashAlgorithm,
+    //     /// Storage proof for the parachain headers
+    //     pub storage_proof: Vec<Vec<u8>>,
+    // }
+
+    #[derive(Debug, Encode, Decode, Clone)]
+    pub enum SupportedDexs {
+        HydraDx,
+        StellaSwap,
+        EthUniswap,
+        PolyUniswap,
+        ArbUniswap,
+        Jupiter,
+        BaseUniswap,
+        BnbUniswap,
     }
 
     /// This object is responsible for verifying and proving trade execution done in another consensus network
@@ -164,34 +281,33 @@ pub mod utils {
         pub target_network_blocknumber: BlockNumber,
         pub transaction_inclusion: TransactionInclusionProof,
         pub state_proof: StateProof,
-        pub consensus_proof: ConsensusProofs,
+        pub consensus_proof: Option<ConsensusProofs>,
     }
 
     /// Data to verify inclusion of the trade transaction
     #[derive(Encode, Decode, Clone, PartialEq, RuntimeDebug, TypeInfo)]
     pub struct TransactionInclusionProof {
-        tx_id: BoundedVec<u8, ConstU32<4_294_967_295>>,
-        tx_proof: BoundedVec<BoundedVec<u8, ConstU32<4_294_967_295>>, ConstU32<4_294_967_295>>,
-        key: BoundedVec<u8, ConstU32<4_294_967_295>>,
-        tx_state_root: BoundedVec<u8, ConstU32<4_294_967_295>>,
+        tx_id: Vec<u8>,
+        tx_proof: Vec<Vec<u8>>,
+        key: Vec<u8>,
+        tx_state_root: Vec<u8>,
     }
 
     /// Data to verify and read account balance after trade transaction
     #[derive(Encode, Decode, Clone, PartialEq, RuntimeDebug, TypeInfo)]
     pub struct StateProof {
-        pub state_root: BoundedVec<u8, ConstU32<4_294_967_295>>,
-        pub state_proofs: BoundedVec<Vec<u8>, ConstU32<4_294_967_295>>,
-        pub state_key: BoundedVec<u8, ConstU32<4_294_967_295>>,
+        pub state_root: Vec<u8>,
+        pub state_proofs: Vec<Vec<u8>>,
+        pub state_key: Vec<u8>,
     }
 
     /// Data to verify the canonical state of the target state machine
     #[derive(Encode, Decode, Clone, PartialEq, RuntimeDebug, TypeInfo)]
     pub struct ConsensusProofs {
-        pub consensus_root: Option<BoundedVec<u8, ConstU32<4_294_967_295>>>,
-        pub consensus_proofs:
-            Option<BoundedVec<BoundedVec<u8, ConstU32<4_294_967_295>>, ConstU32<4_294_967_295>>>,
-        pub consensus_digest: Option<BoundedVec<u8, ConstU32<4_294_967_295>>>,
-        pub consensus_digest_key: Option<BoundedVec<u8, ConstU32<4_294_967_295>>>,
+        pub consensus_root: Vec<u8>,
+        pub consensus_proofs: Vec<Vec<u8>>,
+        pub consensus_digest: Vec<u8>,
+        pub consensus_digest_key: Vec<u8>,
     }
 
     #[derive(Encode, Decode, Clone, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
@@ -212,11 +328,19 @@ pub mod utils {
 
     /// Responsible for allocating funds from different pools to trader on chain trading account
     pub trait CapitalAllocator<T: Config> {
-        fn allocate_capital(network: Networks, trader_id: AccountIdFor<T>) -> DispatchResult;
+        fn allocate_capital(
+            network: Networks,
+            trader_id: AccountIdFor<T>,
+            onchain_trading_account: AccountIdFor<T>,
+        ) -> DispatchResult;
     }
 
     impl<T: Config> CapitalAllocator<T> for () {
-        fn allocate_capital(network: Networks, trader_id: AccountIdFor<T>) -> DispatchResult {
+        fn allocate_capital(
+            network: Networks,
+            trader_id: AccountIdFor<T>,
+            onchain_trading_account: AccountIdFor<T>,
+        ) -> DispatchResult {
             Ok(())
         }
     }
@@ -233,61 +357,105 @@ pub mod utils {
     }
 
     /// Responsible for verifying trade execution proofs
+
     pub trait TradeExecutionVerifier<T: Config> {
         // Verify Trade execution in a foreign Dex in a target network
         fn verify_trade_execution(
             trader_id: AccountIdFor<T>,
+            trading_account: AccountIdFor<T>,
+            asset_id: T::CurrencyId,
             network: Networks,
             proofs: TradeExecutionProof<BlockNumberFor<T>>,
             trade_action: TradeAction,
-        ) -> TransactionValidity;
+        ) -> DispatchResult;
 
         // Verify trade transaction inclusion in the block of the target network ( Blockchain )
         fn verify_trade_tx_inclusion(network: Networks, proofs: TransactionInclusionProof) -> bool;
 
         // Verify state proofs and read the account balance
         fn verify_state_acount_balance(
-            trader_id: AccountIdFor<T>,
             network: Networks,
             proofs: StateProof,
-        ) -> u128;
+        ) -> Result<BTreeMap<Vec<u8>, Option<Vec<u8>>>, Error<T>>;
 
         // Verify consensus commitment on N blockheight
         fn verify_consensus_state(network: Networks, proofs: ConsensusProofs) -> bool;
     }
 
-    impl<T: Config> TradeExecutionVerifier<T> for () {
+    pub struct TradeExecutionVerifyV1;
+
+    impl<T: Config> TradeExecutionVerifier<T> for TradeExecutionVerifyV1 {
         fn verify_trade_execution(
             trader_id: AccountIdFor<T>,
+            trading_account: AccountIdFor<T>,
+            asset_id: T::CurrencyId,
             network: Networks,
             proofs: TradeExecutionProof<BlockNumberFor<T>>,
             trade_action: TradeAction,
-        ) -> TransactionValidity {
-            let is_consensus_valid = T::TradeExecutionVerifier::verify_consensus_state(
-                network.clone(),
-                proofs.consensus_proof,
-            );
+        ) -> DispatchResult {
+            // This will be crucial once targeting other non shared security chains
+            // let is_consensus_valid = T::TradeExecutionVerifier::verify_consensus_state(
+            //     network.clone(),
+            //     proofs.consensus_proof,
+            // );
 
             let is_tx_valid = T::TradeExecutionVerifier::verify_trade_tx_inclusion(
                 network.clone(),
                 proofs.transaction_inclusion,
             );
 
-            let state_account_balance = T::TradeExecutionVerifier::verify_state_acount_balance(
-                trader_id,
-                network,
-                proofs.state_proof,
+            if !is_tx_valid {
+                return Err(Error::<T>::InvalidTxInclusion.into()); // The Tx was not found
+            }
+
+            let state_account_balance =
+                T::TradeExecutionVerifier::verify_state_acount_balance(network, proofs.state_proof)
+                    .map_err(|_| {
+                        Error::<T>::InvalidBalanceStateProof
+                    })?;
+
+            // update pool and trader balance
+            ensure!(
+                CapitalPool::<T>::contains_key(asset_id),
+                Error::<T>::AssetPoolNotSupported
             );
 
-            // Modify this to be dynamic in terms of priority,
-            // All polkadot related verification should have lesser priorioty than non polkadot trade verification
-            Ok(ValidTransaction {
-                priority: u64::MAX,
-                requires: vec![],
-                provides: vec![],
-                longevity: TransactionLongevity::MAX,
-                propagate: true,
-            })
+            // check the asset id and fetch the associated account id for trader
+
+            let mut trader_profile = TraderProfiles::<T>::get(trader_id, trading_account.clone())
+                .ok_or(Error::<T>::TraderNotFunded)?;
+
+            let capital_pool = CapitalPool::<T>::get(asset_id);
+
+            // get the trader trading balance remaining in on chain trading account
+            let trading_acc_vec = trading_account.encode();
+            let rem_trading_balance_encoded = state_account_balance
+                .get(&trading_acc_vec)
+                .ok_or(Error::<T>::InvalidBalanceStateProof)?
+                .clone()
+                .ok_or(Error::<T>::InvalidBalanceStateProof)?;
+
+            let rem_trading_balance: AssetBalance<T> =
+                Decode::decode(&mut &rem_trading_balance_encoded[..]).map_err(|_| {
+                    Error::<T>::FailedToDecodeValue
+                })?;
+
+            // get the net positive or negative balance
+            // let loss = allocated_balance  - rem_trading_balance;
+            // let profit = rem_trading_balance - allocated_balance;
+
+            match trade_action {
+                TradeAction::Buy => {
+                    trader_profile.update_unrealized_balance(rem_trading_balance);
+                    // update the pool
+                }
+                TradeAction::Sell => {
+                    trader_profile.update_unrealized_balance(rem_trading_balance);
+                    // update the pool
+                }
+            }
+
+            Ok(())
         }
 
         fn verify_consensus_state(network: Networks, proofs: ConsensusProofs) -> bool {
@@ -295,15 +463,58 @@ pub mod utils {
         }
 
         fn verify_state_acount_balance(
-            trader_id: AccountIdFor<T>,
             network: Networks,
             proofs: StateProof,
-        ) -> u128 {
-            0
+        ) -> Result<BTreeMap<Vec<u8>, Option<Vec<u8>>>, Error<T>> {
+            match network {
+                Networks::Substrate => {
+                    let data = {
+                        let db =
+                            StorageProof::new(proofs.state_proofs).into_memory_db::<BlakeTwo256>();
+
+                        let state_proof_root = H256::from_slice(&proofs.state_root[..]);
+
+                        let trie =
+                            TrieDBBuilder::<LayoutV1<BlakeTwo256>>::new(&db, &state_proof_root)
+                                .build();
+
+                        vec![proofs.state_key]
+                            .into_iter()
+                            .map(|key| {
+                                let value = trie.get(&key).map_err(|e| Error::FailedTradeProof)?;
+                                Ok((key, value))
+                            })
+                            .collect::<Result<BTreeMap<_, _>, _>>()?
+                    };
+
+                    Ok(data)
+                }
+                _ => todo!(),
+            }
         }
 
         fn verify_trade_tx_inclusion(network: Networks, proofs: TransactionInclusionProof) -> bool {
-            true
+            match network {
+                Networks::Substrate => {
+                    let tx_root = H256::from_slice(&proofs.tx_state_root[..]);
+                    let is_valid = sp_trie::verify_trie_proof::<
+                        sp_trie::LayoutV1<BlakeTwo256>,
+                        _,
+                        Vec<u8>,
+                        Vec<u8>,
+                    >(
+                        &tx_root,
+                        &*proofs.tx_proof,
+                        &[(proofs.key, Some(proofs.tx_id))],
+                    );
+                    if is_valid.is_ok() {
+                        true
+                    } else {
+                        false
+                    }
+                }
+                _ => todo!("Ethereum implementation"),
+            }
         }
     }
 
@@ -355,7 +566,7 @@ pub mod utils {
     //         .map_err(|_| TransactionValidityError::Unknown(UnknownTransaction::Custom(3)))?
     //         .ok_or(TransactionValidityError::Unknown(UnknownTransaction::Custom(3)))?;
 
-    //         let trading_roi: u128 /*This should asset id type */ = Decode::decode(&mut &encoded_balance[..])
+    //         let trading_roi: AssetBalance<T> /*This should asset id type */ = Decode::decode(&mut &encoded_balance[..])
     //             .map_err(|_| TransactionValidityError::Unknown(UnknownTransaction::Custom(4)))?;
 
     //         // reward algorithm

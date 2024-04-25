@@ -10,8 +10,13 @@ List of symbols:
 
 ---
 
-| Dex                     | Status             |
-| ------------------------| -------------------|
-| HYDRA DX (Polkadot)     | 🏗️                 | 
-| UniSwap (Ethereum)      | ❌                 |
-| JupiterSwap (Solana)    | ❌                 |
+|  Supported Chains     | Dex                     | Status             |
+|-----------------------| ------------------------| -------------------|
+|    HYDRA DX           | HYDRA DX                | 🏗️                 |
+|    Moonbeam           | StellaSwap              | 🏗️                 |  
+|    Ethereum           | UniSwap                 | ❌                 |
+|    Solana             | JupiterSwap             | ❌                 |
+|    BNB                |                         | ❌                 |
+|    Base               |                         | ❌                 |
+|    Arbitrum           |                         | ❌                 |
+|    Optimism           |                         | ❌                 |

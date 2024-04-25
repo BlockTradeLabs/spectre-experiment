@@ -22,23 +22,27 @@
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
+use pallet_spectre::util::TradeExecutionVerifyV1;
 use sp_runtime::traits::AccountIdLookup;
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
 
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
+use {staging_xcm_executor::XcmExecutor, xcm_config::XcmConfig};
 
 pub mod migrations;
 mod precompiles;
 pub mod xcm_config;
 
 use {
-    crate::precompiles::TemplatePrecompiles,
-    crate::xcm_config::{
-        AssetId, ForeignAssetsApprovalDeposit, ForeignAssetsAssetAccountDeposit,
-        ForeignAssetsAssetsStringLimit, ForeignAssetsMetadataDepositBase,
-        ForeignAssetsMetadataDepositPerByte,
+    crate::{
+        precompiles::TemplatePrecompiles,
+        xcm_config::{
+            AssetId, ForeignAssetsApprovalDeposit, ForeignAssetsAssetAccountDeposit,
+            ForeignAssetsAssetsStringLimit, ForeignAssetsMetadataDepositBase,
+            ForeignAssetsMetadataDepositPerByte,
+        },
     },
     cumulus_pallet_parachain_system::RelayNumberStrictlyIncreases,
     cumulus_primitives_core::AggregateMessageOrigin,
@@ -102,16 +106,39 @@ pub use {
     sp_runtime::{MultiAddress, Perbill, Permill},
 };
 
-use frame_support::traits::{EnsureOriginWithArg, EqualPrivilegeOnly};
-use frame_support::pallet_prelude::EnsureOrigin;
-use frame_system::EnsureSignedBy;
+use {
+    cumulus_primitives_core::ParaId,
+    frame_support::{
+        pallet_prelude::EnsureOrigin,
+        traits::{EnsureOriginWithArg, EqualPrivilegeOnly, Everything, Nothing},
+    },
+    frame_system::EnsureSignedBy,
+    orml_traits::parameter_type_with_key,
+    sp_runtime::traits::Convert,
+    staging_xcm::opaque::latest::{
+        InteriorMultiLocation, Junction::*, Junctions::*, MultiAsset, MultiLocation, NetworkId,
+    },
+};
 
-use pallet_scheduler;
+use {
+    orml_asset_registry::ExistentialDeposits as AssetRegistryExistentialDeposits,
+    pallet_scheduler,
+    staging_xcm::latest::prelude::*,
+    staging_xcm_builder::{
+        AccountKey20Aliases, AllowKnownQueryResponses, AllowSubscriptionsFrom,
+        AllowTopLevelPaidExecutionFrom, AllowUnpaidExecutionFrom, EnsureXcmOrigin,
+        FixedWeightBounds, ParentIsPreset, RelayChainAsNative, SiblingParachainAsNative,
+        SiblingParachainConvertsVia, SovereignSignedViaLocation, TakeRevenue, TakeWeightCredit,
+        UsingComponents,
+    },
+};
 // Orml
-// use orml_traits;
+use {
+    orml_asset_registry, orml_tokens,
+    orml_traits::{self, location::AbsoluteReserveProvider},
+    orml_xtokens, pallet_spectre,
+};
 
-use pallet_spectre;
-use orml_asset_registry;
 // Polkadot imports
 use polkadot_runtime_common::BlockHashCount;
 
@@ -875,9 +902,159 @@ parameter_types! {
 
 // ========================================================================
 
+parameter_type_with_key! {
+    pub ExistentialDeposits: |currency_id: AssetId| -> Balance {
+        if currency_id == &DOT_ASSET_ID {
+            ExistentialDeposit::get()
+        } else {
+         AssetRegistryExistentialDeposits::<Runtime>::get(currency_id)
+        }
+    };
+}
+
+impl orml_tokens::Config for Runtime {
+    type RuntimeEvent = RuntimeEvent;
+    type Balance = Balance;
+    type Amount = i128;
+    type CurrencyHooks = (); // Hooks can be when user deposits, native tokens should be sent to their accounts
+    type CurrencyId = AssetId;
+    type DustRemovalWhitelist = Nothing;
+    type ExistentialDeposits = ExistentialDeposits;
+    type MaxLocks = ConstU32<0>;
+    type MaxReserves = ConstU32<3>;
+    type ReserveIdentifier = [u8; 8];
+    type WeightInfo = ();
+}
+
+pub const DOT_ASSET_ID: AssetId = 0;
+pub const USDT_ASSET_ID: AssetId = 1;
+pub const USDC_ASSET_ID: AssetId = 2;
+
+pub struct CurrencyIdConvert;
+
+impl Convert<AssetId, Option<MultiLocation>> for CurrencyIdConvert {
+    fn convert(id: AssetId) -> Option<MultiLocation> {
+        match id {
+            DOT_ASSET_ID => Some(MultiLocation::new(
+                1,
+                X2(
+                    Parachain(ParachainInfo::get().into()),
+                    GeneralIndex(id.into()),
+                ),
+            )),
+            _ => AssetRegistry::multilocation(&id).unwrap_or_default(),
+        }
+    }
+}
+
+impl Convert<MultiLocation, Option<AssetId>> for CurrencyIdConvert {
+    fn convert(location: MultiLocation) -> Option<AssetId> {
+        match location {
+            MultiLocation {
+                parents,
+                interior: X2(Parachain(id), GeneralIndex(index)),
+            } if parents == 1
+                && ParaId::from(id) == ParachainInfo::get()
+                && (index as u32) == DOT_ASSET_ID =>
+            {
+                // Handling native asset for this parachain
+                Some(DOT_ASSET_ID)
+            }
+            // handle reanchor canonical location: https://github.com/paritytech/polkadot/pull/4470
+            MultiLocation {
+                parents: 0,
+                interior: X1(GeneralIndex(index)),
+            } if (index as u32) == DOT_ASSET_ID => Some(DOT_ASSET_ID),
+            // delegate to asset-registry
+            _ => AssetRegistry::location_to_asset_id(location),
+        }
+    }
+}
+
+impl Convert<MultiAsset, Option<AssetId>> for CurrencyIdConvert {
+    fn convert(asset: MultiAsset) -> Option<AssetId> {
+        if let MultiAsset {
+            id: Concrete(location),
+            ..
+        } = asset
+        {
+            Self::convert(location)
+        } else {
+            None
+        }
+    }
+}
+
+pub struct AccountIdToMultiLocation;
+impl Convert<AccountId, MultiLocation> for AccountIdToMultiLocation {
+    fn convert(account: AccountId) -> MultiLocation {
+        X1(AccountKey20 {
+            network: None,
+            key: account.into(),
+        })
+        .into()
+    }
+}
+
 parameter_types! {
-	pub MaximumSchedulerWeight: Weight = Perbill::from_percent(80) *
-		BlockWeights::default().max_block;
+    pub SelfLocation: MultiLocation = MultiLocation::new(1, X1(Parachain(ParachainInfo::get().into())));
+}
+
+parameter_type_with_key! {
+    pub ParachainMinFee: |_location: MultiLocation| -> Option<u128> {
+          None
+    };
+}
+
+parameter_types! {
+    /// The amount of weight an XCM operation takes. This is a safe overestimate.
+    pub const BaseXcmWeight: Weight = Weight::from_parts(100_000_000, 0);
+    pub const MaxInstructions: u32 = 100;
+    pub const MaxAssetsForTransfer: usize = 2;
+}
+
+parameter_types! {
+    pub const RelayNetwork: NetworkId = NetworkId::Kusama;
+    pub const RelayLocation: MultiLocation = MultiLocation::parent();
+    pub RelayChainOrigin: RuntimeOrigin = cumulus_pallet_xcm::Origin::Relay.into();
+    pub Ancestry: MultiLocation = Parachain(ParachainInfo::parachain_id().into()).into();
+    pub UniversalLocation: InteriorMultiLocation = X2(GlobalConsensus(RelayNetwork::get()), Parachain(ParachainInfo::parachain_id().into()));
+}
+
+impl orml_xtokens::Config for Runtime {
+    type RuntimeEvent = RuntimeEvent;
+
+    type Balance = Balance;
+
+    type CurrencyId = AssetId;
+
+    type CurrencyIdConvert = CurrencyIdConvert;
+
+    type AccountIdToMultiLocation = AccountIdToMultiLocation;
+
+    type SelfLocation = SelfLocation;
+
+    type MinXcmFee = ParachainMinFee;
+
+    type XcmExecutor = XcmExecutor<XcmConfig>;
+
+    type MultiLocationsFilter = Everything;
+
+    type Weigher = FixedWeightBounds<BaseXcmWeight, RuntimeCall, MaxInstructions>;
+
+    type BaseXcmWeight = BaseXcmWeight;
+
+    type UniversalLocation = UniversalLocation;
+
+    type MaxAssetsForTransfer = MaxAssetsForTransfer;
+
+    type ReserveProvider = AbsoluteReserveProvider;
+}
+
+parameter_types! {
+    pub MaximumSchedulerWeight: Weight = Perbill::from_percent(80) *
+        BlockWeights::default().max_block;
+    pub WithdrawPeriod: BlockNumber = 400_000;
 }
 
 impl pallet_scheduler::Config for Runtime {
@@ -918,11 +1095,10 @@ impl EnsureOriginWithArg<RuntimeOrigin, Option<u32>> for AssetAuthority {
         unimplemented!()
     }
 }
-#[derive(Eq, Debug, Clone,PartialEq, TypeInfo)]
+#[derive(Eq, Debug, Clone, PartialEq, TypeInfo)]
 pub struct CustomMetadata {
-	pub fee_per_second: u128,
+    pub fee_per_second: u128,
 }
-
 
 impl orml_asset_registry::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
@@ -946,35 +1122,10 @@ impl pallet_spectre::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
     type NativeBalance = Balances;
     type CapitalAllocator = ();
-    type TradeExecutionVerifier = ();
+    type TradeExecutionVerifier = TradeExecutionVerifyV1;
     type InvestorPoolOwnership = ConstU8<30>;
     type TraderPoolOwnership = ConstU8<60>;
-    type DefaultAsset = DefaultAsset;
-    type DefaultBalance = DefaultBalance;
-    type TotalSupportedAssets = ConstU8<4>;
-}
-
-impl pallet_assets::Config for Runtime {
-    type RuntimeEvent = RuntimeEvent;
-    type Balance = Balance;
-    type AssetId = AssetId;
-    type AssetIdParameter = AssetId;
-    type Currency = Balances;
-    type CreateOrigin = frame_support::traits::NeverEnsureOrigin<AccountId>;
-    type ForceOrigin = EnsureRoot<AccountId>;
-    type AssetDeposit = ForeignAssetsApprovalDeposit;
-    type MetadataDepositBase = ForeignAssetsMetadataDepositBase;
-    type MetadataDepositPerByte = ForeignAssetsMetadataDepositPerByte;
-    type ApprovalDeposit = ForeignAssetsApprovalDeposit;
-    type StringLimit = ForeignAssetsAssetsStringLimit;
-    type Freezer = ();
-    type Extra = ();
-    type WeightInfo = pallet_assets::weights::SubstrateWeight<Runtime>;
-    type CallbackHandle = ();
-    type AssetAccountDeposit = ForeignAssetsAssetAccountDeposit;
-    type RemoveItemsLimit = frame_support::traits::ConstU32<1000>;
-    #[cfg(feature = "runtime-benchmarks")]
-    type BenchmarkHelper = ForeignAssetBenchmarkHelper;
+    type WithdrawPeriod = WithdrawPeriod;
 }
 
 impl_tanssi_pallets_config!(Runtime);
@@ -1032,7 +1183,9 @@ construct_runtime!(
 
         AssetRegistry: orml_asset_registry,
 
-        Assets: pallet_assets,
+        Assets: orml_tokens,
+
+        Xtokens: orml_xtokens,
 
         Spectre: pallet_spectre
     }
