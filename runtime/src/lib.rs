@@ -22,6 +22,7 @@
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
+use pallet_spectre::util::TradeExecutionVerifyV1;
 use sp_runtime::traits::AccountIdLookup;
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
@@ -1121,7 +1122,7 @@ impl pallet_spectre::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
     type NativeBalance = Balances;
     type CapitalAllocator = ();
-    type TradeExecutionVerifier = ();
+    type TradeExecutionVerifier = TradeExecutionVerifyV1;
     type InvestorPoolOwnership = ConstU8<30>;
     type TraderPoolOwnership = ConstU8<60>;
     type WithdrawPeriod = WithdrawPeriod;

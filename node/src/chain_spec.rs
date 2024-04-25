@@ -186,8 +186,20 @@ fn testnet_genesis(
         // This should initialize it to whatever we have set in the pallet
         polkadot_xcm: PolkadotXcmConfig::default(),
         tx_pause: Default::default(),
+        asset_registry: spectre_runtime::AssetRegistryConfig {
+            assets: vec![
+                (1, b"sfDOT".to_vec()),
+                (2, b"sfUSDT".to_vec()),
+                (3, b"sfUSDC".to_vec()),
+            ],
+            last_asset_id: 3,
+        },
+        assets: spectre_runtime::AssetsConfig { balances: vec![] },
         spectre: spectre_runtime::SpectreConfig {
             relayer: Some(root_key),
+            initial_capital: 0,
+            supported_assets: vec![],
+            fee: 10, // percentage
         },
     };
 

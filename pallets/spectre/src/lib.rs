@@ -137,9 +137,7 @@ pub mod pallet {
         pub relayer: Option<AccountIdFor<T>>,
         pub supported_assets: Vec<T::CurrencyId>,
         pub initial_capital: AssetBalance<T>,
-        pub initial_blocktime_pool: BlockNumberFor<T>,
         pub fee: u8,
-        pub pool_account_id: AccountIdFor<T>,
     }
 
     impl<T: Config> Default for GenesisConfig<T> {
@@ -148,9 +146,7 @@ pub mod pallet {
                 relayer: None,
                 supported_assets: vec![],
                 initial_capital: AssetBalance::<T>::default(),
-                initial_blocktime_pool: <frame_system::Pallet<T>>::block_number(),
                 fee: 0,
-                pool_account_id: Pallet::<T>::generate_pool_account(T::CurrencyId::default()),
             }
         }
     }
@@ -164,15 +160,15 @@ pub mod pallet {
                     .expect(" Setup spectre relayer account"),
             );
             self.supported_assets.iter().for_each(|asset| {
+                let account_id = Pallet::<T>::generate_pool_account(asset.clone());
                 let investor_pool = InvestorCapitalPool {
                     asset_name: asset.clone(),
                     total_capital: self.initial_capital,
                     remaining_capital: self.initial_capital,
                     total_allocated_capital: self.initial_capital,
                     unrealized_balance: self.initial_capital,
-                    created_at: self.initial_blocktime_pool,
                     fee: self.fee,
-                    account_id: self.pool_account_id.clone(),
+                    account_id,
                 };
 
                 CapitalPool::<T>::insert(asset, investor_pool);
@@ -185,7 +181,7 @@ pub mod pallet {
         /// Returned if the pool fails to allocate funds to the trader.
         FailedToAllocateFundsToTrader,
         /// If the trader account is not registered
-        UnregisteredTraderAcount,
+        TraderNotFunded,
         /// Returned if an operation on creating account key pair for the on chain trading account fails
         FailedToGenerateTradingAccount,
         /// Returned if failed to transfer funds from the contract account to on chain trading account
@@ -202,6 +198,12 @@ pub mod pallet {
         FailedToDecodeValue,
         /// Returned if not enough deposit fund from investor from registering.
         InsufficientDeposit,
+        /// Returned when trader is not found
+        TraderNotRegistered,
+        /// Returned when the trade tx is not recognized
+        InvalidTxInclusion,
+        /// Returned when the reading and verifying onchain trading balance is invalid
+        InvalidBalanceStateProof,
 
         AccountUnavailable,
         /// This error should not occur as the relayer is set in the pallet genesis storage
@@ -249,7 +251,7 @@ pub mod pallet {
 
         fn validate_unsigned(source: TransactionSource, call: &Self::Call) -> TransactionValidity {
             let (trader_id, asset_id, network, trade_execution_proof, trade_action) = match call {
-                Call::verify_trade {
+                Call::verify_trade_execution {
                     trader_id,
                     asset_id,
                     network,
@@ -265,14 +267,16 @@ pub mod pallet {
                 _ => Err(TransactionValidityError::Invalid(InvalidTransaction::Call))?,
             };
 
-            // verify proofs submitted per the network
-            T::TradeExecutionVerifier::verify_trade_execution(
-                trader_id.clone(),
-                asset_id.clone(),
-                network.clone(),
-                trade_execution_proof.clone(),
-                trade_action.clone(),
-            )
+            // Modify this to be dynamic in terms of priority,
+            // All polkadot related verification should have lesser priorioty than non polkadot trade verification
+            Ok(ValidTransaction {
+                priority: u64::MAX,
+                requires: vec![],
+                provides: vec![],
+                longevity: TransactionLongevity::MAX,
+                propagate: true,
+            })
+
         }
     }
 
@@ -346,13 +350,35 @@ pub mod pallet {
         #[pallet::weight(Weight::default())]
         pub fn allocate_capital(origin: OriginFor<T>, network: Networks) -> DispatchResult {
             let trader_id = ensure_signed(origin)?;
-            T::CapitalAllocator::allocate_capital(network, trader_id)?;
+
+            match network {
+                Networks::Substrate => {
+                    let onchain_trading_account =
+                        OnChainTradingAccounts::<T>::get(trader_id.clone())
+                            .ok_or(Error::<T>::TraderNotRegistered)?
+                            .substrate
+                            .ok_or(Error::<T>::TraderNotRegistered)?;
+
+                    T::CapitalAllocator::allocate_capital(
+                        network.clone(),
+                        trader_id.clone(),
+                        onchain_trading_account.clone(),
+                    )?;
+                    Self::deposit_event(Event::FundsAllocated {
+                        trader_id,
+                        onchain_trading_account,
+                        network,
+                    });
+                }
+                _ => todo!(),
+            }
+
             Ok(())
         }
 
         #[pallet::call_index(3)]
         #[pallet::weight(Weight::default())]
-        pub fn verify_trade(
+        pub fn verify_trade_execution(
             origin: OriginFor<T>,
             trader_id: AccountIdFor<T>,
             asset_id: T::CurrencyId,
@@ -361,17 +387,27 @@ pub mod pallet {
             trade_action: TradeAction,
         ) -> DispatchResult {
             ensure_none(origin)?;
-            <Pallet<T> as ValidateUnsigned>::validate_unsigned(
-                TransactionSource::External,
-                &Call::verify_trade {
-                    trader_id,
-                    asset_id,
-                    network,
-                    trade_execution_proof,
-                    trade_action,
-                },
-            )
-            .map_err(|_| Error::<T>::InvalidProofSubmission)?;
+
+            let trading_account = OnChainTradingAccounts::<T>::get(trader_id.clone())
+                .ok_or(Error::<T>::TraderNotRegistered)?
+                .substrate
+                .ok_or(Error::<T>::TraderNotRegistered)?;
+
+             // verify proofs submitted per the network
+             T::TradeExecutionVerifier::verify_trade_execution(
+                trader_id.clone(),
+                trading_account.clone(),
+                asset_id.clone(),
+                network.clone(),
+                trade_execution_proof.clone(),
+                trade_action.clone(),
+            )?;
+            
+            Self::deposit_event(Event::TradeVerifiedSuccesfully{
+                network,
+                onchain_trading_account: trading_account,
+                trader_id
+            });
             Ok(())
         }
     }
