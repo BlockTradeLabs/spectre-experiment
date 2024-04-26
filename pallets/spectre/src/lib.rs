@@ -322,6 +322,8 @@ pub mod pallet {
             Ok(())
         }
 
+        /// Registers trader after generating on chain trading accounts in the contract. 
+        /// This extrinsic accept the trading acconts public key to registers them with trader account id
         #[pallet::call_index(1)]
         #[pallet::weight(Weight::default())]
         pub fn register_trader(
