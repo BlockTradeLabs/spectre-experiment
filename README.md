@@ -1,7 +1,7 @@
 # Spectre Finance
 Multichain proprietary trading platform
 
-**Decentralized Exchanges supported**
+## Decentralized Exchanges supported
 
 List of symbols:
 - ✅: means the Dex is currently supported.
@@ -20,3 +20,14 @@ List of symbols:
 |    Base               |                         | ❌                 |
 |    Arbitrum           |                         | ❌                 |
 |    Optimism           |                         | ❌                 |
+
+
+---
+
+## Running
+
+
+## Testing
+
+
+## Contribution
