@@ -15,7 +15,7 @@
 // along with Tanssi.  If not, see <http://www.gnu.org/licenses/>.
 
 use {
-    crate::xcm_config::{ForeignAssetsInstance, XcmConfig},
+    crate::xcm_config::XcmConfig,
     frame_support::parameter_types,
     pallet_evm_precompile_balances_erc20::{Erc20BalancesPrecompile, Erc20Metadata},
     pallet_evm_precompile_batch::BatchPrecompile,
@@ -106,7 +106,7 @@ pub type TemplatePrecompiles<R> = PrecompileSetBuilder<
         // Prefixed precompile sets (XC20)
         PrecompileSetStartingWith<
             ForeignAssetPrefix,
-            Erc20AssetsPrecompileSet<R, ForeignAssetsInstance>,
+            Erc20AssetsPrecompileSet<R>,
             (CallableByContract, CallableByPrecompile),
         >,
     ),

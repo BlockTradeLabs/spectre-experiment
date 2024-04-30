@@ -151,19 +151,6 @@ fn testnet_genesis(
         evm: EVMConfig {
             // We need _some_ code inserted at the precompile address so that
             // the evm will actually call the address.
-            accounts: Precompiles::used_addresses()
-                .map(|addr| {
-                    (
-                        addr.into(),
-                        GenesisAccount {
-                            nonce: Default::default(),
-                            balance: Default::default(),
-                            storage: Default::default(),
-                            code: revert_bytecode.clone(),
-                        },
-                    )
-                })
-                .collect(),
             ..Default::default()
         },
         ethereum: Default::default(),
