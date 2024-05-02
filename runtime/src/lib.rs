@@ -22,6 +22,9 @@
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
+#[cfg(test)]
+mod integration_test;
+
 use pallet_spectre::util::TradeExecutionVerifyV1;
 use sp_runtime::traits::AccountIdLookup;
 #[cfg(feature = "std")]

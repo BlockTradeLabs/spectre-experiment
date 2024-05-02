@@ -20,6 +20,8 @@ parity-scale-codec = { workspace = true, features = [ "derive" ] }
 scale-info = { workspace = true, features = [ "derive" ] }
 serde = { workspace = true, optional = true, features = [ "derive" ] }
 smallvec = { workspace = true }
+array-bytes = "6.1.0"
+
 
 #Orml
 orml-traits = {workspace = true}
@@ -129,6 +131,16 @@ precompile-utils = { workspace = true }
 frame-benchmarking = { workspace = true, optional = true }
 frame-system-benchmarking = { workspace = true, optional = true }
 
+[dev-dependencies]
+xcm-emulator = { workspace = true }
+emulated-integration-tests-common = { workspace = true }
+polkadot-core-primitives = { workspace = true }
+parachains-common = { workspace = true }
+rococo-runtime = {workspace = true}
+rococo-emulated-chain = { workspace = true}
+asset-hub-rococo-emulated-chain = { workspace = true }
+# polkadot-runtime ={ workspace = true }
+
 [build-dependencies]
 substrate-wasm-builder = { workspace = true }
 
@@ -230,7 +242,8 @@ std = [
 	"orml-traits/std",
 	"orml-xtokens/std",
 	"orml-asset-registry/std",
-	"orml-tokens/std"
+	"orml-tokens/std",
+	"rococo-runtime/std",
 ]
 
 # Allow to print logs details (no wasm:stripped)
