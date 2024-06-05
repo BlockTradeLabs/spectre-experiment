@@ -1,15 +1,20 @@
 use {
-    cumulus_primitives_core::ParaId,
+    cumulus_primitives_core::{Junction, MultiLocation, ParaId},
     fp_evm::GenesisAccount,
+    frame_benchmarking::__private::traits::ConstU32,
     hex_literal::hex,
+    orml_asset_registry::AssetMetadata,
+    parity_scale_codec::Encode,
     sc_chain_spec::{ChainSpecExtension, ChainSpecGroup},
     sc_network::config::MultiaddrWithPeerId,
     sc_service::ChainType,
     serde::{Deserialize, Serialize},
+    sp_core::bounded_vec::BoundedVec,
     spectre_runtime::{
-        AccountId, EVMChainIdConfig, EVMConfig, MaintenanceModeConfig, MigrationsConfig,
+        AccountId, Balance, EVMChainIdConfig, EVMConfig, MaintenanceModeConfig, MigrationsConfig,
         PolkadotXcmConfig, Precompiles,
     },
+    staging_xcm::VersionedMultiLocation,
 };
 
 /// Specialized `ChainSpec` for the normal parachain runtime.
@@ -127,6 +132,41 @@ fn testnet_genesis(
     // (PUSH1 0x00 PUSH1 0x00 REVERT)
     let revert_bytecode = vec![0x60, 0x00, 0x60, 0x00, 0xFD];
 
+    // asset metadata
+    let sf_dot = AssetMetadata::<Balance, Vec<u8>, ConstU32<10>> {
+        decimals: 12,
+        name: BoundedVec::truncate_from("sfDOT".as_bytes().to_vec()),
+        symbol: BoundedVec::truncate_from("sfDOT".as_bytes().to_vec()),
+        existential_deposit: 0,
+        location: Some(VersionedMultiLocation::V3(MultiLocation::new(
+            0,
+            Junction::GeneralIndex(1),
+        ))),
+        additional: b"spectre finance derived token".to_vec(),
+    };
+    let sf_usdt = AssetMetadata::<Balance, Vec<u8>, ConstU32<10>> {
+        decimals: 12,
+        name: BoundedVec::truncate_from("sfUSDT".as_bytes().to_vec()),
+        symbol: BoundedVec::truncate_from("sfUSDT".as_bytes().to_vec()),
+        existential_deposit: 0,
+        location: Some(VersionedMultiLocation::V3(MultiLocation::new(
+            0,
+            Junction::GeneralIndex(2),
+        ))),
+        additional: b"spectre finance derived token".to_vec(),
+    };
+    let sf_usdc = AssetMetadata::<Balance, Vec<u8>, ConstU32<10>> {
+        decimals: 12,
+        name: BoundedVec::truncate_from("sfUSDC".as_bytes().to_vec()),
+        symbol: BoundedVec::truncate_from("sUSDC".as_bytes().to_vec()),
+        existential_deposit: 0,
+        location: Some(VersionedMultiLocation::V3(MultiLocation::new(
+            0,
+            Junction::GeneralIndex(3),
+        ))),
+        additional: b"spectre finance derived token".to_vec(),
+    };
+
     let g = spectre_runtime::RuntimeGenesisConfig {
         system: Default::default(),
         balances: spectre_runtime::BalancesConfig {
@@ -175,9 +215,9 @@ fn testnet_genesis(
         tx_pause: Default::default(),
         asset_registry: spectre_runtime::AssetRegistryConfig {
             assets: vec![
-                (1, b"sfDOT".to_vec()),
-                (2, b"sfUSDT".to_vec()),
-                (3, b"sfUSDC".to_vec()),
+                (1, sf_dot.encode()),
+                (2, sf_usdt.encode()),
+                (3, sf_usdc.encode()),
             ],
             last_asset_id: 3,
         },

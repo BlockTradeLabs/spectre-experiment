@@ -85,6 +85,7 @@ polkadot-cli = { workspace = true }
 polkadot-parachain-primitives = { workspace = true }
 polkadot-primitives = { workspace = true }
 polkadot-service = { workspace = true }
+staging-xcm = { workspace = true }
 
 # Cumulus
 cumulus-client-cli = { workspace = true }
@@ -96,6 +97,9 @@ cumulus-client-service = { workspace = true }
 cumulus-primitives-core = { workspace = true }
 cumulus-relay-chain-interface = { workspace = true }
 cumulus-test-relay-sproof-builder = { workspace = true }
+
+# orml
+orml-asset-registry = { workspace = true}
 
 # Frontier
 fc-api = { workspace = true }

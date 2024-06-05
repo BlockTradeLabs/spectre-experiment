@@ -23,12 +23,11 @@
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
 #[cfg(test)]
-mod integration_test;
+mod integration_test_xcm;
 
-use pallet_spectre::util::TradeExecutionVerifyV1;
-use sp_runtime::traits::AccountIdLookup;
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
+use {pallet_spectre::util::TradeExecutionVerifyV1, sp_runtime::traits::AccountIdLookup};
 
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
@@ -366,7 +365,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("Spectre Finance"),
     impl_name: create_runtime_str!("Spectre Finance"),
     authoring_version: 1,
-    spec_version: 601,
+    spec_version: 602,
     impl_version: 0,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 1,
@@ -1130,6 +1129,11 @@ impl pallet_spectre::Config for Runtime {
     type TraderPoolOwnership = ConstU8<60>;
     type WithdrawPeriod = WithdrawPeriod;
 }
+
+// TODO
+// Add pallet ismp
+
+// Add simnode
 
 impl_tanssi_pallets_config!(Runtime);
 

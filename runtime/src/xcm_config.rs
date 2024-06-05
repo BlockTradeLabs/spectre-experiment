@@ -19,9 +19,9 @@ use frame_support::Identity;
 use {
     super::{
         precompiles::FOREIGN_ASSET_PRECOMPILE_ADDRESS_PREFIX, AccountId, AllPalletsWithSystem,
-        Balance, Balances, MaintenanceMode, MessageQueue, ParachainInfo,
-        ParachainSystem, PolkadotXcm, Runtime, RuntimeBlockWeights, RuntimeCall, RuntimeEvent,
-        RuntimeOrigin, WeightToFee, XcmpQueue,
+        Balance, Balances, MaintenanceMode, MessageQueue, ParachainInfo, ParachainSystem,
+        PolkadotXcm, Runtime, RuntimeBlockWeights, RuntimeCall, RuntimeEvent, RuntimeOrigin,
+        WeightToFee, XcmpQueue,
     },
     ccp_xcm::SignedToAccountKey20,
     cumulus_primitives_core::{AggregateMessageOrigin, ParaId},
@@ -360,9 +360,9 @@ impl pallet_xcm_executor_utils::Config for Runtime {
 }
 
 use {
+    crate::Assets,
     staging_xcm_builder::{FungiblesAdapter, NoChecking},
     staging_xcm_executor::traits::JustTry,
-    crate::Assets,
 };
 
 /// Means for transacting foreign assets from different global consensus.
@@ -381,5 +381,3 @@ pub type ForeignFungiblesTransactor = FungiblesAdapter<
     // The account to use for tracking teleports.
     CheckingAccount,
 >;
-
-

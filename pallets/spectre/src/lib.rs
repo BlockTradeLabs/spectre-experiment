@@ -1,3 +1,5 @@
+#![cfg(not(doctest))]
+
 //! Spectre pallet.
 //!
 //! Terminologies
@@ -16,13 +18,11 @@
 //!
 //!     3. Funds allocation from LP to traders
 //!
-//!     4. Fetching live price feeds from oracle
+//!     4. Trade execution verification
 //!
-//!     5. Trader executing trades
-//!         a. Signing transaction payload
-//!         b. Sending to Relayer
+//!     5. Pool updates after tx execution
 //!
-//!     6.  Relayer updating transaction execution to the oracle.
+//!     6. Relayer registering traders.
 //!
 //!     7. Tracking trader perfomance
 //!
@@ -49,7 +49,6 @@ pub use pallet::*;
 
 #[frame_support::pallet]
 pub mod pallet {
-
     use {
         frame_support::sp_runtime::{traits::BlakeTwo256, MultiAddress},
         frame_system::{
@@ -57,6 +56,7 @@ pub mod pallet {
             pallet_prelude::{BlockNumberFor, OriginFor},
             RawOrigin,
         },
+        sp_io::hashing::blake2_128,
     };
 
     use crate::*;
@@ -269,14 +269,24 @@ pub mod pallet {
 
             // Modify this to be dynamic in terms of priority,
             // All polkadot related verification should have lesser priorioty than non polkadot trade verification
+            // No duplicate tx
+            let hash = (
+                trade_action,
+                asset_id,
+                network,
+                trade_execution_proof,
+                trade_action,
+            )
+                .using_encoded(blake2_128)
+                .to_vec();
+
             Ok(ValidTransaction {
-                priority: u64::MAX,
+                priority: 10,
                 requires: vec![],
-                provides: vec![],
-                longevity: TransactionLongevity::MAX,
+                provides: vec![hash],
+                longevity: 5, // blocks
                 propagate: true,
             })
-
         }
     }
 
@@ -322,7 +332,7 @@ pub mod pallet {
             Ok(())
         }
 
-        /// Registers trader after generating on chain trading accounts in the contract. 
+        /// Registers trader after generating on chain trading accounts in the contract.
         /// This extrinsic accept the trading acconts public key to registers them with trader account id
         #[pallet::call_index(1)]
         #[pallet::weight(Weight::default())]
@@ -395,8 +405,8 @@ pub mod pallet {
                 .substrate
                 .ok_or(Error::<T>::TraderNotRegistered)?;
 
-             // verify proofs submitted per the network
-             T::TradeExecutionVerifier::verify_trade_execution(
+            // verify proofs submitted per the network
+            T::TradeExecutionVerifier::verify_trade_execution(
                 trader_id.clone(),
                 trading_account.clone(),
                 asset_id.clone(),
@@ -404,11 +414,11 @@ pub mod pallet {
                 trade_execution_proof.clone(),
                 trade_action.clone(),
             )?;
-            
-            Self::deposit_event(Event::TradeVerifiedSuccesfully{
+
+            Self::deposit_event(Event::TradeVerifiedSuccesfully {
                 network,
                 onchain_trading_account: trading_account,
-                trader_id
+                trader_id,
             });
             Ok(())
         }
