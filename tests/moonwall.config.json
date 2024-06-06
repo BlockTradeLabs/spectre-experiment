@@ -1,75 +1,37 @@
-
 {
-   "$schema": "https://raw.githubusercontent.com/Moonsong-Labs/moonwall/main/packages/types/config_schema.json",
-   "label": "Spectre Moonwall Config",
-   "defaultTestTimeout": 30000,
-   "environments": [
-      {
-         "name": "integration",
-         "testFileDir": [
-            "suits/integration"
-         ],
-         "foundation": {
-            "type": "dev",
-            "launchSpec": [
-               {
-                   "name": "spectre-node",
-                   "binPath": "../target/release/spectre-node",
-                   "options": [
-                       "--dev",
-                       "--sealing=manual",
-                       "--no-hardware-benchmarks",
-                       "--wasmtime-precompiled=wasm"
-                   ],
-                   "newRpcBehaviour": true
-               }
-           ]
-         }
-      },
-      {
-         "name": "e2e",
-         "timeout": 600000,
-         "testFileDir": [
-            "suits/e2e"
-         ],
-         "runScripts": [
-            "build-spec.sh",
-            "compile-wasm.ts compile -b ./tmp/tanssi-node -o wasm -c specs/tanssi-1000.json",
-            "compile-wasm.ts compile -b ../target/release/spectre-node -o wasm -c specs/spectre-node.json"
-        ],
-         "foundation": {
-            "type": "zombie",
-            "zombieSpec": {
-               "configPath": "./configs/spectreZombie.json"
-            }
-         },
-         "connections": [
-            {
-               "name": "Relay",
-               "type": "polkadotJs",
-               "endpoints": ["ws://127.0.0.1:9947"]
-           },
-           {
-               "name": "Tanssi",
-               "type": "polkadotJs",
-               "endpoints": ["ws://127.0.0.1:9950"]
-           },
-           {
-               "name": "Container2001",
-               "type": "polkadotJs",
-               "endpoints": ["ws://127.0.0.1:9960"]
-           },
-           {
-               "name": "ethers",
-               "type": "ethers",
-               "endpoints": ["ws://127.0.0.1:9970"]
-           },
-           {
-               "name": "w3",
-               "type": "web3",
-               "endpoints": ["ws://127.0.0.1:9970"]
-           }
-         ]
+  "$schema": "https://raw.githubusercontent.com/Moonsong-Labs/moonwall/main/packages/types/config_schema.json",
+  "label": "💃 MasterConfig",
+  "defaultTestTimeout": 120000,
+  "scriptsDir": "scripts/",
+  "environments": [
+
+    {
+      "name": "e2e",
+      "testFileDir": [
+        "suites/e2e"
+      ],
+      "runScripts": [
+        "compile-wasm.ts compile -b ../target/release/spectre-node -o wasm -c dev"
+      ],
+      "multiThreads": true,
+      "reporters": ["basic"],
+      "contracts": "helpers/",
+      "foundation": {
+        "type": "dev",
+        "launchSpec": [
+          {
+            "name": "spectre-node",
+            "binPath": "../target/release/spectre-node",
+            "options": [
+              "--dev",
+              "--sealing=manual",
+              "--no-hardware-benchmarks",
+              "--wasmtime-precompiled=wasm"
+            ],
+            "newRpcBehaviour": true
+          }
+        ]
       }
-   ]
+    }
+  ]
 }
