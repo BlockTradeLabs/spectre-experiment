@@ -22,10 +22,12 @@
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
-use pallet_spectre::util::TradeExecutionVerifyV1;
-use sp_runtime::traits::AccountIdLookup;
+#[cfg(test)]
+mod integration_test_xcm;
+
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
+use {pallet_spectre::util::TradeExecutionVerifyV1, sp_runtime::traits::AccountIdLookup};
 
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
@@ -363,7 +365,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("Spectre Finance"),
     impl_name: create_runtime_str!("Spectre Finance"),
     authoring_version: 1,
-    spec_version: 601,
+    spec_version: 602,
     impl_version: 0,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 1,
@@ -780,7 +782,7 @@ impl FindAuthor<H160> for FindAuthorAdapter {
 
 parameter_types! {
     pub BlockGasLimit: U256 = U256::from(BLOCK_GAS_LIMIT);
-    pub PrecompilesValue: TemplatePrecompiles<Runtime> = TemplatePrecompiles::<_>::new();
+    //pub PrecompilesValue: TemplatePrecompiles<Runtime> = TemplatePrecompiles::<_>::new();
     pub WeightPerGas: Weight = Weight::from_parts(weight_per_gas(BLOCK_GAS_LIMIT, NORMAL_DISPATCH_RATIO, WEIGHT_MILLISECS_PER_BLOCK), 0);
     pub SuicideQuickClearLimit: u32 = 0;
 }
@@ -796,8 +798,8 @@ impl pallet_evm::Config for Runtime {
     type AddressMapping = IdentityAddressMapping;
     type Currency = Balances;
     type RuntimeEvent = RuntimeEvent;
-    type PrecompilesType = TemplatePrecompiles<Self>;
-    type PrecompilesValue = PrecompilesValue;
+    type PrecompilesType = ();
+    type PrecompilesValue = ();
     type ChainId = EVMChainId;
     type BlockGasLimit = BlockGasLimit;
     type Runner = pallet_evm::runner::stack::Runner<Self>;
@@ -1128,6 +1130,11 @@ impl pallet_spectre::Config for Runtime {
     type WithdrawPeriod = WithdrawPeriod;
 }
 
+// TODO
+// Add pallet ismp
+
+// Add simnode
+
 impl_tanssi_pallets_config!(Runtime);
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
@@ -1170,9 +1177,6 @@ construct_runtime!(
         DmpQueue: cumulus_pallet_dmp_queue::{Pallet, Call, Storage, Event<T>} = 72,
         PolkadotXcm: pallet_xcm::{Pallet, Call, Storage, Event<T>, Origin, Config<T>} = 73,
         MessageQueue: pallet_message_queue::{Pallet, Call, Storage, Event<T>} = 74,
-        ForeignAssets: pallet_assets::<Instance1>::{Pallet, Call, Storage, Event<T>} = 75,
-        // ForeignAssetsCreator: pallet_foreign_asset_creator::{Pallet, Call, Storage, Event<T>} = 76,
-        AssetRate: pallet_asset_rate::{Pallet, Call, Storage, Event<T>} = 77,
         XcmExecutorUtils: pallet_xcm_executor_utils::{Pallet, Call, Storage, Event<T>} = 78,
 
         RootTesting: pallet_root_testing = 100,
@@ -1180,13 +1184,9 @@ construct_runtime!(
 
         // spectre pallets associated pallets
         Scheduler: pallet_scheduler,
-
         AssetRegistry: orml_asset_registry,
-
         Assets: orml_tokens,
-
         Xtokens: orml_xtokens,
-
         Spectre: pallet_spectre
     }
 );
@@ -1207,9 +1207,6 @@ mod benches {
         [cumulus_pallet_xcmp_queue, XcmpQueue]
         [pallet_xcm, PalletXcmExtrinsicsBenchmark::<Runtime>]
         [pallet_xcm_benchmarks::generic, pallet_xcm_benchmarks::generic::Pallet::<Runtime>]
-        [pallet_assets, ForeignAssets]
-        [pallet_asset_rate, AssetRate]
-        // [pallet_foreign_asset_creator, ForeignAssetsCreator]
     );
 }
 

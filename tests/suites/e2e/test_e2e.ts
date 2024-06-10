@@ -4,11 +4,10 @@ import { PrivateKeyAccount } from "viem";
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 
 describeSuite({
-    id: "END TO END MVP",
-    title: "TEST INTEGRATION ON SPECTRE NODE, PHALA CONTRACT AND USER SIMULATED INTERACTION",
-    foundationMethods: "zombie",
+    id: "DF0101",
+    title: "Existential Deposit disabled",
+    foundationMethods: "dev",
     testCases: ({ context, it }) => {
-               
-
-    },
+        console.log("hello")
+    }
 });

@@ -16,7 +16,7 @@
     "allowImportingTsExtensions": true,
   },
   "include": [
-    "*suits/**/*.ts"
+    "*suites/**/*.ts"
   ],
   "exclude": ["node_modules/"]
 }
