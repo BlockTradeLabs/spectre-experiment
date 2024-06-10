@@ -160,9 +160,9 @@ pub mod pallet {
                     .expect(" Setup spectre relayer account"),
             );
             self.supported_assets.iter().for_each(|asset| {
-                let account_id = Pallet::<T>::generate_pool_account(asset.clone());
+                let account_id = Pallet::<T>::generate_pool_account(Some(asset.clone()));
                 let investor_pool = InvestorCapitalPool {
-                    asset_name: asset.clone(),
+                    asset_name: Some(asset.clone()),
                     total_capital: self.initial_capital,
                     remaining_capital: self.initial_capital,
                     total_allocated_capital: self.initial_capital,

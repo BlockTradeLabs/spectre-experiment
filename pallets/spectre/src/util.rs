@@ -41,7 +41,7 @@ pub mod utils {
 
     impl<T: Config> Pallet<T> {
         // helper function to generate onchain keyless account
-        pub fn generate_pool_account(asset_id: T::CurrencyId) -> AccountIdFor<T> {
+        pub fn generate_pool_account(asset_id: Option<T::CurrencyId>) -> AccountIdFor<T> {
             let entropy = (b"spectre/salt", asset_id).using_encoded(blake2_128);
             let pool_account_id = Decode::decode(&mut TrailingZeroInput::new(entropy.as_ref()))
                 .expect("Infinite length input, Cant create an account");
@@ -182,7 +182,7 @@ pub mod utils {
     #[derive(Encode, Decode, Clone, RuntimeDebug, MaxEncodedLen, TypeInfo)]
     #[scale_info(skip_type_params(T))]
     pub struct InvestorCapitalPool<T: Config> {
-        pub asset_name: T::CurrencyId,
+        pub asset_name: Option<T::CurrencyId>,
         pub total_capital: AssetBalance<T>, //BalanceOf<T>,
         pub remaining_capital: AssetBalance<T>,
         pub total_allocated_capital: AssetBalance<T>,
@@ -213,9 +213,9 @@ pub mod utils {
 
     impl<T: Config> Default for InvestorCapitalPool<T> {
         fn default() -> InvestorCapitalPool<T> {
-            let account_id = Pallet::<T>::generate_pool_account(T::CurrencyId::default());
+            let account_id = Pallet::<T>::generate_pool_account(None);
             Self {
-                asset_name: T::CurrencyId::default(),
+                asset_name: None,
                 total_capital: AssetBalance::<T>::default(),
                 fee: 1,
                 remaining_capital: AssetBalance::<T>::default(),
@@ -230,7 +230,7 @@ pub mod utils {
     #[derive(Encode, Decode, Clone, DefaultNoBound, RuntimeDebug, MaxEncodedLen, TypeInfo)]
     #[scale_info(skip_type_params(T))]
     pub struct TraderBond<T: Config> {
-        pub amount: T::CurrencyId,
+        pub amount: Option<T::CurrencyId>,
         pub stake: bool,
     }
 
